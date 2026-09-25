@@ -35,11 +35,18 @@
       <button id="maal-knapp">Start måling</button>
       <button id="nullstill-maal">Nullstill</button>
       <p id="avstand">Avstand: 0 m</p>
+
+      <!-- Hjelpetekst for reguleringsplan-laget -->
+      <h2>Reguleringsplaner</h2>
+      <p class="hjelp">Slå på «Reguleringsplaner» i lagmenyen oppe til høyre i kartet.
+        Når laget er på, viser et klikk i kartet planen som gjelder der, i stedet for å legge til et punkt.</p>
     </aside>
   </main>
 
   <!-- Leaflet sitt JavaScript-bibliotek -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Oversettelse av arealformål-koder til tekst (brukes av script.js) -->
+  <script src="arealformal.js"></script>
   <!-- Vår egen kode. Må komme ETTER Leaflet, fordi den bruker Leaflet -->
   <script src="script.js"></script>
 </body>

@@ -29,12 +29,32 @@ const satellitt = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/servi
 // Vis gatekartet når siden åpnes
 gatekart.addTo(kart);
 
+// Reguleringsplaner fra Direktoratet for byggkvalitet (DiBK).
+// Dette er et WMS-lag: Leaflet ber serveren tegne ferdige bilder av planene
+// for utsnittet vi ser på. transparent: true gjør at bakgrunnskartet synes gjennom.
+// "vn2" betyr vertikalnivå 2, altså planer på bakkenivå (ikke tunneler og bruer).
+const PLAN_WMS_URL = 'https://nap.ft.dibk.no/services/wms/reguleringsplaner';
+const PLAN_LAG = 'arealformal_vn2,rpomrade_vn2'; // arealformål først, planområde-grensen oppå
+
+const planlag = L.tileLayer.wms(PLAN_WMS_URL, {
+  layers: PLAN_LAG,
+  format: 'image/png',
+  transparent: true,
+  version: '1.3.0',
+  opacity: 0.6,
+  maxZoom: 19,
+  attribution: 'Planer &copy; <a href="https://www.dibk.no/">DiBK</a>'
+});
+
 // Legg til en bryter oppe til høyre i kartet, der man kan velge kartlag.
-// Teksten til venstre er det som vises i menyen.
+// Den første gruppen er bakgrunnskart (bare ett av gangen).
+// Den andre gruppen er lag som kan slås av og på oppå bakgrunnskartet.
 L.control.layers({
   'Gatekart': gatekart,
   'Topografisk': topokart,
   'Satellitt': satellitt
+}, {
+  'Reguleringsplaner': planlag
 }).addTo(kart);
 
 // 3. Her lagrer vi punktene. Hvert punkt er et objekt: { navn, lat, lng }.
@@ -95,6 +115,12 @@ kart.on('click', function (hendelse) {
   // Mens vi måler, skal klikk legge til målepunkter i stedet.
   if (maler) {
     leggTilMalepunkt(hendelse.latlng);
+    return;
+  }
+
+  // Når reguleringsplan-laget er slått på, viser klikk planinformasjon.
+  if (kart.hasLayer(planlag)) {
+    visPlaninfo(hendelse.latlng);
     return;
   }
 
@@ -175,5 +201,143 @@ nullstillKnapp.addEventListener('click', function () {
   avstandTekst.textContent = 'Avstand: 0 m';
 });
 
-// 7. Vis punktene som allerede var lagret da siden ble åpnet.
+// 7. Planinformasjon med WMS GetFeatureInfo.
+//    Vi spør plantjenesten: "hva ligger i denne pikselen av kartbildet?"
+//    og får svar som JSON med egenskapene til planen der.
+
+// Lenke til Trondheim kommunes kart over gjeldende reguleringsplaner.
+// Kartet har ingen kjent lenke direkte til én plan, så vi viser planID
+// ved siden av, slik at man kan søke den opp.
+const TRONDHEIM_PLANKART = 'https://map.isy.no/?application=trondheim';
+
+// Gjør tekst trygg å sette inn i HTML (så f.eks. "<" i et plannavn
+// vises som tekst og ikke tolkes som kode).
+function trygg(tekst) {
+  const div = document.createElement('div');
+  div.textContent = tekst == null ? '' : String(tekst);
+  return div.innerHTML;
+}
+
+// "2011-06-16Z" -> "16.06.2011"
+function formaterDato(dato) {
+  if (!dato) {
+    return 'Ukjent';
+  }
+  const deler = dato.slice(0, 10).split('-'); // ["2011", "06", "16"]
+  return deler[2] + '.' + deler[1] + '.' + deler[0];
+}
+
+// Lager nettadressen til GetFeatureInfo-forespørselen.
+// Serveren trenger å vite hvilket kartutsnitt vi ser på (BBOX), hvor stort
+// bildet er i piksler (WIDTH/HEIGHT), og hvilken piksel vi klikket på (I/J).
+function lagPlaninfoUrl(latlng) {
+  const storrelse = kart.getSize();
+  const piksel = kart.latLngToContainerPoint(latlng).round();
+
+  // Gjør kartutsnittets hjørner om fra grader til meter (EPSG:3857).
+  const utsnitt = kart.getBounds();
+  const sorvest = kart.options.crs.project(utsnitt.getSouthWest());
+  const nordost = kart.options.crs.project(utsnitt.getNorthEast());
+
+  const parametere = new URLSearchParams({
+    SERVICE: 'WMS',
+    VERSION: '1.3.0',
+    REQUEST: 'GetFeatureInfo',
+    LAYERS: PLAN_LAG,
+    QUERY_LAYERS: PLAN_LAG,
+    STYLES: '',
+    CRS: 'EPSG:3857',
+    BBOX: [sorvest.x, sorvest.y, nordost.x, nordost.y].join(','),
+    WIDTH: storrelse.x,
+    HEIGHT: storrelse.y,
+    I: piksel.x,
+    J: piksel.y,
+    INFO_FORMAT: 'application/json',
+    FEATURE_COUNT: 20
+  });
+
+  return PLAN_WMS_URL + '?' + parametere.toString();
+}
+
+// Lager HTML-innholdet i popupen ut fra svaret fra serveren.
+function lagPlaninfoHtml(objekter) {
+  // Svaret inneholder to typer objekter:
+  //  - RpOmråde: selve planen (navn, planID, datoer)
+  //  - RpArealformålOmråde / RbFormålOmråde: hva arealet skal brukes til
+  const planer = objekter.filter(function (o) {
+    return o.properties.objekttypenavn === 'RpOmråde';
+  });
+
+  if (planer.length === 0) {
+    return 'Ingen vedtatt reguleringsplan her.';
+  }
+
+  let html = '';
+  planer.forEach(function (plan) {
+    const p = plan.properties;
+    const planId = p['arealplanId.planidentifikasjon'];
+
+    // Finn arealformålene som hører til denne planen.
+    // Nyere planer har koden i "arealformål", eldre planer i "reguleringsformål".
+    const formal = [];
+    objekter.forEach(function (o) {
+      const e = o.properties;
+      const kode = e['arealformål'] || e['reguleringsformål'];
+      if (kode && e['arealplanId.planidentifikasjon'] === planId) {
+        let tekst = AREALFORMAL[kode] || 'Kode ' + kode;
+        if (e.feltbetegnelse) {
+          tekst += ' (' + e.feltbetegnelse + ')';
+        }
+        if (!formal.includes(tekst)) {
+          formal.push(tekst);
+        }
+      }
+    });
+
+    // Vedtaksdato: bruk dato for endelig vedtak, ellers ikrafttredelsesdato.
+    const vedtatt = p.vedtakEndeligPlanDato || p.ikrafttredelsesdato;
+
+    html += '<div class="planinfo">' +
+      '<h3>' + trygg(p.plannavn || 'Uten navn') + '</h3>' +
+      '<table>' +
+      '<tr><th>PlanID</th><td>' + trygg(planId) + '</td></tr>' +
+      '<tr><th>Arealformål</th><td>' + (formal.length ? formal.map(trygg).join('<br>') : 'Ukjent') + '</td></tr>' +
+      '<tr><th>Vedtatt</th><td>' + formaterDato(vedtatt) + '</td></tr>' +
+      '</table>';
+
+    // Lenke til Trondheim kommunes plankart (kommunenummer 5001 = Trondheim).
+    if (p['arealplanId.kommunenummer'] === '5001') {
+      html += '<a href="' + TRONDHEIM_PLANKART + '" target="_blank" rel="noopener">' +
+        'Åpne i Trondheim kommunes plankart</a> (søk etter ' + trygg(planId) + ')';
+    }
+    html += '</div>';
+  });
+
+  return html;
+}
+
+// Viser en popup der brukeren klikket, og fyller den med planinformasjon.
+// "async" betyr at funksjonen kan vente på svar fra nettet med "await".
+async function visPlaninfo(latlng) {
+  const popup = L.popup({ maxWidth: 320 })
+    .setLatLng(latlng)
+    .setContent('Henter planinformasjon …')
+    .openOn(kart);
+
+  try {
+    const svar = await fetch(lagPlaninfoUrl(latlng));
+    if (!svar.ok) {
+      throw new Error('Serveren svarte med feilkode ' + svar.status);
+    }
+    const data = await svar.json();
+    popup.setContent(lagPlaninfoHtml(data.features || []));
+  } catch (feil) {
+    // Hit kommer vi hvis nettet er nede, serveren har feil, eller
+    // nettleseren blokkerer svaret (CORS). Detaljer vises i konsollen (F12).
+    console.error('Klarte ikke hente planinformasjon:', feil);
+    popup.setContent('Klarte ikke hente planinformasjon. Prøv igjen senere.');
+  }
+}
+
+// 8. Vis punktene som allerede var lagret da siden ble åpnet.
 visPunkter();

@@ -103,3 +103,29 @@ aside button + h2 {
 #kart.maler {
   cursor: crosshair;
 }
+
+/* Popup med planinformasjon */
+.planinfo h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.planinfo table {
+  border-collapse: collapse;
+  margin-bottom: 6px;
+}
+
+.planinfo th {
+  text-align: left;
+  padding-right: 8px;
+  vertical-align: top;
+  color: #555;
+  font-weight: normal;
+}
+
+/* Strek mellom planene hvis flere planer overlapper */
+.planinfo + .planinfo {
+  border-top: 1px solid #ddd;
+  margin-top: 8px;
+  padding-top: 8px;
+}
