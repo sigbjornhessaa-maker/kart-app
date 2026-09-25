@@ -77,3 +77,29 @@ button {
     width: auto;
   }
 }
+
+/* Litt luft mellom punktlisten og måleverktøyet */
+aside button + h2 {
+  margin-top: 20px;
+}
+
+.hjelp {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+#avstand {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+/* Knappen blir markert når måling er slått på */
+#maal-knapp.aktiv {
+  background: #1f4e79;
+  color: white;
+}
+
+/* Trådkors-peker i kartet mens vi måler */
+#kart.maler {
+  cursor: crosshair;
+}

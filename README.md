@@ -1,5 +1,6 @@
 # kart-app
-Mitt første kart-app prosjekt: et kart over Trondheim der du kan klikke for å legge til punkter med navn.
+Mitt første kart-app prosjekt: et kart over Trondheim der du kan klikke for å legge til punkter med navn,
+bytte mellom gatekart, topografisk kart og satellittbilder, og måle avstander.
 
 ## Filer
 - `index.html` – strukturen på siden (overskrift, kart-boks, liste).
