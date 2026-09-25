@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<!-- index.html: selve nettsiden. Den bestemmer HVA som finnes på siden. -->
+<html lang="no">
+<head>
+  <!-- Tegnsett, slik at æ, ø og å vises riktig -->
+  <meta charset="UTF-8">
+  <!-- Gjør at siden skalerer riktig på mobil -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kart over Trondheim</title>
+
+  <!-- Leaflet sitt stilark (utseendet på kartet), hentet fra internett -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <!-- Vårt eget stilark -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Kart over Trondheim</h1>
+    <p>Klikk i kartet for å legge til et punkt.</p>
+  </header>
+
+  <main>
+    <!-- Her tegner Leaflet kartet. id="kart" brukes i script.js -->
+    <div id="kart"></div>
+
+    <!-- Liste over punktene du har lagt til -->
+    <aside>
+      <h2>Mine punkter</h2>
+      <ul id="punktliste"></ul>
+      <button id="slett-alle">Slett alle</button>
+    </aside>
+  </main>
+
+  <!-- Leaflet sitt JavaScript-bibliotek -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Vår egen kode. Må komme ETTER Leaflet, fordi den bruker Leaflet -->
+  <script src="script.js"></script>
+</body>
+</html>

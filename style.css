@@ -1,0 +1,79 @@
+/* style.css: bestemmer hvordan siden SER UT (farger, størrelser, plassering). */
+
+/* Fjerner standard marg rundt siden og velger skrifttype */
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #f4f6f8;
+  color: #222;
+}
+
+header {
+  background: #1f4e79;
+  color: white;
+  padding: 12px 16px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+header p {
+  margin: 4px 0 0;
+}
+
+/* Kartet og listen ligger side om side (flexbox) */
+main {
+  display: flex;
+  height: calc(100vh - 80px); /* hele skjermhøyden minus toppfeltet */
+}
+
+/* Kartet MÅ ha en høyde, ellers blir det usynlig */
+#kart {
+  flex: 1;
+}
+
+aside {
+  width: 260px;
+  padding: 12px 16px;
+  background: white;
+  overflow-y: auto;
+}
+
+aside h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+
+#punktliste {
+  padding-left: 18px;
+}
+
+#punktliste li {
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+
+#punktliste li:hover {
+  text-decoration: underline;
+}
+
+button {
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+/* På smale skjermer (mobil): legg listen under kartet */
+@media (max-width: 700px) {
+  main {
+    flex-direction: column;
+    height: auto;
+  }
+  #kart {
+    height: 60vh;
+  }
+  aside {
+    width: auto;
+  }
+}
