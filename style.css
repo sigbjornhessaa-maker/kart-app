@@ -29,9 +29,17 @@ main {
   height: calc(100vh - 80px); /* hele skjermhøyden minus toppfeltet */
 }
 
-/* Kartet MÅ ha en høyde, ellers blir det usynlig */
-#kart {
+/* Kartområdet tar all plass ved siden av panelet. position: relative gjør
+   at lagmenyen og tidslinjen kan plasseres oppå kartet (position: absolute). */
+#kart-omrade {
   flex: 1;
+  position: relative;
+}
+
+/* Kartet MÅ ha en høyde, ellers blir det usynlig. inset: 0 = fyll hele kartområdet */
+#kart {
+  position: absolute;
+  inset: 0;
 }
 
 aside {
@@ -42,8 +50,12 @@ aside {
 }
 
 aside h2 {
-  margin-top: 0;
+  margin: 20px 0 8px;
   font-size: 1.1rem;
+}
+
+aside h2:first-child {
+  margin-top: 0;
 }
 
 #punktliste {
@@ -70,17 +82,13 @@ button {
     flex-direction: column;
     height: auto;
   }
-  #kart {
-    height: 60vh;
+  #kart-omrade {
+    flex: none;
+    height: 70vh;
   }
   aside {
     width: auto;
   }
-}
-
-/* Litt luft mellom punktlisten og måleverktøyet */
-aside button + h2 {
-  margin-top: 20px;
 }
 
 .hjelp {
@@ -97,11 +105,6 @@ aside button + h2 {
 #maal-knapp.aktiv {
   background: #1f4e79;
   color: white;
-}
-
-/* Trådkors-peker i kartet mens vi måler */
-#kart.maler {
-  cursor: crosshair;
 }
 
 /* Popup med planinformasjon */
@@ -129,3 +132,83 @@ aside button + h2 {
   margin-top: 8px;
   padding-top: 8px;
 }
+
+/* Lagmenyen oppe til høyre i kartet */
+.lagmeny {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1; /* over kartet */
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  font-size: 0.9rem;
+}
+
+.lagmeny strong + label {
+  margin-top: 2px;
+}
+
+.lagmeny label + strong {
+  margin-top: 6px;
+}
+
+/* Tidslinjen nederst i kartet */
+.tidslinje {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 30px; /* over krediteringsfeltet */
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+#aar-slider {
+  flex: 1;
+  min-width: 150px;
+}
+
+#aar-tekst {
+  font-weight: bold;
+  font-size: 1.3rem;
+  min-width: 3em;
+}
+
+#spill-knapp {
+  width: 40px;
+}
+
+/* Tegnforklaring for bygningsfargene */
+.tegnforklaring {
+  list-style: none;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.tegnforklaring li {
+  margin-bottom: 4px;
+}
+
+.farge {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border: 1px solid #999;
+}
+
+.farge.eksisterende { background: #d8d2c8; }
+.farge.ny { background: #e67e22; }
+.farge.rives { background: #c0392b; }

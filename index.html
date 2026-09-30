@@ -8,22 +8,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kart over Trondheim</title>
 
-  <!-- Leaflet sitt stilark (utseendet på kartet), hentet fra internett -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <!-- MapLibre GL sitt stilark (utseendet på knapper, popuper osv.) -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
   <!-- Vårt eget stilark -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header>
     <h1>Kart over Trondheim</h1>
-    <p>Klikk i kartet for å legge til et punkt.</p>
+    <p>Klikk i kartet for å legge til et punkt. Vipp kartet i 3D: dra med høyre museknapp (på mobil: dra med to fingre).</p>
   </header>
 
   <main>
-    <!-- Her tegner Leaflet kartet. id="kart" brukes i script.js -->
-    <div id="kart"></div>
+    <!-- Kartområdet: selve kartet, med lagmeny og tidslinje liggende oppå -->
+    <div id="kart-omrade">
+      <!-- Her tegner MapLibre kartet. id="kart" brukes i script.js -->
+      <div id="kart"></div>
 
-    <!-- Liste over punktene du har lagt til -->
+      <!-- Lagmeny: velg bakgrunnskart og slå kartlag av og på -->
+      <div class="lagmeny">
+        <strong>Bakgrunnskart</strong>
+        <!-- Radioknapper med samme name: bare én kan være valgt om gangen -->
+        <label><input type="radio" name="bakgrunn" value="gatekart" checked> Gatekart</label>
+        <label><input type="radio" name="bakgrunn" value="topokart"> Topografisk</label>
+        <label><input type="radio" name="bakgrunn" value="satellitt"> Satellitt</label>
+        <strong>Kartlag</strong>
+        <label><input type="checkbox" id="vis-planer"> Reguleringsplaner</label>
+        <label><input type="checkbox" id="vis-bygninger" checked> Campus i 3D</label>
+      </div>
+
+      <!-- Tidslinje: viser campus år for år (styres av bygninger.js) -->
+      <div class="tidslinje">
+        <button id="spill-knapp" title="Spill av år for år">▶</button>
+        <input type="range" id="aar-slider" min="1900" max="2040" step="1" value="2026">
+        <span id="aar-tekst">2026</span>
+        <label class="hjelp"><input type="checkbox" id="skjul-ukjente"> Skjul bygninger uten kjent byggeår</label>
+        <span id="bygg-status" class="hjelp"></span>
+      </div>
+    </div>
+
+    <!-- Sidepanel -->
     <aside>
       <h2>Mine punkter</h2>
       <ul id="punktliste"></ul>
@@ -36,6 +60,16 @@
       <button id="nullstill-maal">Nullstill</button>
       <p id="avstand">Avstand: 0 m</p>
 
+      <!-- Forklaring av 3D-bygningene -->
+      <h2>Campus i 3D</h2>
+      <p class="hjelp">Bygninger på Gløshaugen, Hesthagen/Elgeseter, Studentersamfundet og Lerkendal.
+        Klikk på en bygning for å se detaljer. Nye bygninger og rivinger legger du inn i <code>campus-data.js</code>.</p>
+      <ul class="tegnforklaring">
+        <li><span class="farge eksisterende"></span> Eksisterende (OpenStreetMap)</li>
+        <li><span class="farge ny"></span> Ny bygning (fra datafilen)</li>
+        <li><span class="farge rives"></span> Skal rives</li>
+      </ul>
+
       <!-- Hjelpetekst for reguleringsplan-laget -->
       <h2>Reguleringsplaner</h2>
       <p class="hjelp">Slå på «Reguleringsplaner» i lagmenyen oppe til høyre i kartet.
@@ -43,11 +77,14 @@
     </aside>
   </main>
 
-  <!-- Leaflet sitt JavaScript-bibliotek -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- MapLibre GL sitt JavaScript-bibliotek -->
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <!-- Oversettelse av arealformål-koder til tekst (brukes av script.js) -->
   <script src="arealformal.js"></script>
-  <!-- Vår egen kode. Må komme ETTER Leaflet, fordi den bruker Leaflet -->
+  <!-- Datafilen din med nye bygninger og rivinger (brukes av bygninger.js) -->
+  <script src="campus-data.js"></script>
+  <!-- Vår egen kode. Må komme ETTER MapLibre, fordi den bruker MapLibre -->
   <script src="script.js"></script>
+  <script src="bygninger.js"></script>
 </body>
 </html>

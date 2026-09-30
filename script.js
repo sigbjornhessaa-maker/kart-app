@@ -1,73 +1,116 @@
 // script.js: bestemmer hva siden GJØR (oppførsel og interaktivitet).
+// Kartet tegnes med MapLibre GL, som bruker skjermkortet (WebGL) og kan vise 3D.
+//
+// Viktig forskjell fra Leaflet: MapLibre skriver koordinater som
+// [lengdegrad, breddegrad] (øst, nord), altså motsatt rekkefølge av Leaflet.
 
-// 1. Lag kartet og sentrer det på Trondheim.
-//    [63.4305, 10.3951] er breddegrad og lengdegrad, 13 er zoomnivå.
-const kart = L.map('kart').setView([63.4305, 10.3951], 13);
+// 1. Kartlagene. I MapLibre beskriver vi hele kartet i en "stil" (style):
+//    - sources (kilder): hvor dataene kommer fra
+//    - layers (lag): hvordan dataene skal tegnes, i rekkefølge nederst til øverst
 
-// 2. Kartlag. Hvert lag er en samling kartbilder (fliser) fra en kartleverandør.
-//    {z} er zoomnivå, {x} og {y} er hvilken flis. Hver leverandør krever at vi
-//    viser hvem som har laget kartet (attribution).
-
-// Vanlig gatekart fra OpenStreetMap
-const gatekart = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-bidragsytere'
-});
-
-// Topografisk kart fra Kartverket (viser terreng, høydekurver, stier)
-const topokart = L.tileLayer('https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png', {
-  maxZoom: 18,
-  attribution: '&copy; <a href="https://www.kartverket.no/">Kartverket</a>'
-});
-
-// Satellittbilder fra Esri
-const satellitt = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-  maxZoom: 19,
-  attribution: 'Bilder &copy; Esri'
-});
-
-// Vis gatekartet når siden åpnes
-gatekart.addTo(kart);
-
-// Reguleringsplaner fra Direktoratet for byggkvalitet (DiBK).
-// Dette er et WMS-lag: Leaflet ber serveren tegne ferdige bilder av planene
-// for utsnittet vi ser på. transparent: true gjør at bakgrunnskartet synes gjennom.
+// Reguleringsplaner fra Direktoratet for byggkvalitet (DiBK), som WMS.
 // "vn2" betyr vertikalnivå 2, altså planer på bakkenivå (ikke tunneler og bruer).
 const PLAN_WMS_URL = 'https://nap.ft.dibk.no/services/wms/reguleringsplaner';
 const PLAN_LAG = 'arealformal_vn2,rpomrade_vn2'; // arealformål først, planområde-grensen oppå
 
-const planlag = L.tileLayer.wms(PLAN_WMS_URL, {
-  layers: PLAN_LAG,
-  format: 'image/png',
-  transparent: true,
-  version: '1.3.0',
-  opacity: 0.6,
-  maxZoom: 19,
-  attribution: 'Planer &copy; <a href="https://www.dibk.no/">DiBK</a>'
+// Kreditering av OpenStreetMap. Den vises alltid nederst i kartet,
+// fordi både gatekartet og 3D-bygningene kommer fra OpenStreetMap.
+const OSM_KREDITERING = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>-bidragsytere';
+
+const stil = {
+  version: 8,
+  sources: {
+    // Vanlig gatekart fra OpenStreetMap. {z} er zoomnivå, {x} og {y} er hvilken flis.
+    gatekart: {
+      type: 'raster',
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: OSM_KREDITERING
+    },
+    // Topografisk kart fra Kartverket (terreng, høydekurver, stier)
+    topokart: {
+      type: 'raster',
+      tiles: ['https://cache.kartverket.no/v1/wmts/1.0.0/topo/default/webmercator/{z}/{y}/{x}.png'],
+      tileSize: 256,
+      maxzoom: 18,
+      attribution: '&copy; <a href="https://www.kartverket.no/" target="_blank">Kartverket</a>'
+    },
+    // Satellittbilder fra Esri
+    satellitt: {
+      type: 'raster',
+      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution: 'Bilder &copy; Esri'
+    },
+    // Reguleringsplaner som WMS. MapLibre bytter selv ut {bbox-epsg-3857}
+    // med området til hver flis, så serveren vet hva den skal tegne.
+    planer: {
+      type: 'raster',
+      tiles: [PLAN_WMS_URL + '?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap' +
+        '&LAYERS=' + encodeURIComponent(PLAN_LAG) +
+        '&STYLES=&FORMAT=image/png&TRANSPARENT=true&CRS=EPSG:3857' +
+        '&WIDTH=256&HEIGHT=256&BBOX={bbox-epsg-3857}'],
+      tileSize: 256,
+      attribution: 'Planer &copy; <a href="https://www.dibk.no/" target="_blank">DiBK</a>'
+    }
+  },
+  layers: [
+    // Bakgrunnskartene. Bare ett av dem er synlig om gangen (visibility).
+    { id: 'gatekart', type: 'raster', source: 'gatekart' },
+    { id: 'topokart', type: 'raster', source: 'topokart', layout: { visibility: 'none' } },
+    { id: 'satellitt', type: 'raster', source: 'satellitt', layout: { visibility: 'none' } },
+    // Reguleringsplaner oppå bakgrunnskartet, litt gjennomsiktig
+    { id: 'planer', type: 'raster', source: 'planer', paint: { 'raster-opacity': 0.6 }, layout: { visibility: 'none' } }
+  ]
+};
+
+// 2. Lag kartet. center er [lengdegrad, breddegrad] for Gløshaugen.
+//    pitch er hvor mye kartet vippes (0 = rett ovenfra), bearing er rotasjon.
+const kart = new maplibregl.Map({
+  container: 'kart',
+  style: stil,
+  center: [10.4025, 63.4175],
+  zoom: 15.3,
+  pitch: 55,
+  bearing: -20,
+  maxPitch: 75,
+  attributionControl: false // vi legger til vår egen under, med OSM alltid med
 });
 
-// Legg til en bryter oppe til høyre i kartet, der man kan velge kartlag.
-// Den første gruppen er bakgrunnskart (bare ett av gangen).
-// Den andre gruppen er lag som kan slås av og på oppå bakgrunnskartet.
-L.control.layers({
-  'Gatekart': gatekart,
-  'Topografisk': topokart,
-  'Satellitt': satellitt
-}, {
-  'Reguleringsplaner': planlag
-}).addTo(kart);
+// Knapper for zoom og rotasjon. Kompasset nullstiller rotasjon og vipping.
+kart.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-left');
+// Krediteringsfeltet nederst til høyre. compact: false = alltid utfoldet.
+kart.addControl(new maplibregl.AttributionControl({
+  compact: false,
+  customAttribution: OSM_KREDITERING
+}), 'bottom-right');
 
-// 3. Her lagrer vi punktene. Hvert punkt er et objekt: { navn, lat, lng }.
+// 3. Lagmenyen. Når brukeren velger et bakgrunnskart, skjuler vi de andre.
+const BAKGRUNNER = ['gatekart', 'topokart', 'satellitt'];
+
+document.querySelectorAll('input[name="bakgrunn"]').forEach(function (radio) {
+  radio.addEventListener('change', function () {
+    BAKGRUNNER.forEach(function (id) {
+      kart.setLayoutProperty(id, 'visibility', id === radio.value ? 'visible' : 'none');
+    });
+  });
+});
+
+const visPlanerBoks = document.getElementById('vis-planer');
+visPlanerBoks.addEventListener('change', function () {
+  kart.setLayoutProperty('planer', 'visibility', visPlanerBoks.checked ? 'visible' : 'none');
+});
+
+// 4. Mine punkter. Hvert punkt er et objekt: { navn, lat, lng }.
 //    Vi henter tidligere lagrede punkter fra nettleseren (localStorage),
 //    slik at de ikke forsvinner når du laster siden på nytt.
 let punkter = JSON.parse(localStorage.getItem('punkter') || '[]');
+let markorer = []; // MapLibre-markørene som vises nå
 
-// Hent listen og knappen fra HTML-en, slik at vi kan endre dem.
 const punktliste = document.getElementById('punktliste');
 const slettKnapp = document.getElementById('slett-alle');
-
-// En egen "gruppe" for markørene, så vi enkelt kan fjerne alle samtidig.
-const markorLag = L.layerGroup().addTo(kart);
 
 // Lagrer punktene i nettleseren. localStorage kan bare lagre tekst,
 // så vi gjør listen om til tekst med JSON.stringify.
@@ -77,21 +120,29 @@ function lagrePunkter() {
 
 // Tegner alle punktene på nytt, både på kartet og i listen.
 function visPunkter() {
-  markorLag.clearLayers();
+  // Fjern de gamle markørene fra kartet
+  markorer.forEach(function (m) { m.remove(); });
+  markorer = [];
   punktliste.innerHTML = '';
 
   punkter.forEach(function (punkt) {
-    // Lag en markør på kartet med en boble (popup) som viser navnet.
-    const markor = L.marker([punkt.lat, punkt.lng])
-      .bindPopup(punkt.navn)
-      .addTo(markorLag);
+    // Boble (popup) med navnet. setText gjør at navnet alltid vises som tekst.
+    const popup = new maplibregl.Popup({ offset: 30 }).setText(punkt.navn);
 
-    // Klikk på markøren mens vi måler: bruk punktet i målingen
-    // i stedet for å vise navneboblen.
-    markor.on('click', function () {
+    const markor = new maplibregl.Marker()
+      .setLngLat([punkt.lng, punkt.lat])
+      .addTo(kart);
+    markorer.push(markor);
+
+    // Klikk på markøren: under måling brukes punktet i målingen,
+    // ellers vises navneboblen. stopPropagation hindrer at klikket
+    // også blir et vanlig kartklikk (som ville lagt til et nytt punkt).
+    markor.getElement().addEventListener('click', function (hendelse) {
+      hendelse.stopPropagation();
       if (maler) {
-        markor.closePopup();
-        leggTilMalepunkt(markor.getLatLng());
+        leggTilMalepunkt(markor.getLngLat());
+      } else {
+        popup.setLngLat(markor.getLngLat()).addTo(kart);
       }
     });
 
@@ -102,25 +153,40 @@ function visPunkter() {
 
     // Klikk på navnet i listen: fly til punktet og åpne boblen.
     li.addEventListener('click', function () {
-      kart.setView([punkt.lat, punkt.lng], 16);
-      markor.openPopup();
+      kart.flyTo({ center: [punkt.lng, punkt.lat], zoom: 17 });
+      popup.setLngLat(markor.getLngLat()).addTo(kart);
     });
 
     punktliste.appendChild(li);
   });
 }
 
-// 4. Når brukeren klikker i kartet: spør om navn og legg til punktet.
+// "Slett alle"-knappen tømmer listen etter en bekreftelse.
+slettKnapp.addEventListener('click', function () {
+  if (confirm('Vil du slette alle punktene?')) {
+    punkter = [];
+    lagrePunkter();
+    visPunkter();
+  }
+});
+
+// 5. Klikk i kartet. Hva som skjer, avhenger av hva som er slått på:
+//    måling → målepunkt, bygning → bygningsinfo, planlag → planinfo,
+//    ellers → spør om navn og legg til et punkt.
 kart.on('click', function (hendelse) {
-  // Mens vi måler, skal klikk legge til målepunkter i stedet.
+  // hendelse.lngLat er stedet på bakken der brukeren klikket.
   if (maler) {
-    leggTilMalepunkt(hendelse.latlng);
+    leggTilMalepunkt(hendelse.lngLat);
     return;
   }
 
-  // Når reguleringsplan-laget er slått på, viser klikk planinformasjon.
-  if (kart.hasLayer(planlag)) {
-    visPlaninfo(hendelse.latlng);
+  // Klikket brukeren på en 3D-bygning? (visBygningsinfo ligger i bygninger.js)
+  if (visBygningsinfo(hendelse)) {
+    return;
+  }
+
+  if (visPlanerBoks.checked) {
+    visPlaninfo(hendelse.lngLat);
     return;
   }
 
@@ -133,21 +199,12 @@ kart.on('click', function (hendelse) {
 
   punkter.push({
     navn: navn.trim(),
-    lat: hendelse.latlng.lat,
-    lng: hendelse.latlng.lng
+    lat: hendelse.lngLat.lat,
+    lng: hendelse.lngLat.lng
   });
 
   lagrePunkter();
   visPunkter();
-});
-
-// 5. "Slett alle"-knappen tømmer listen etter en bekreftelse.
-slettKnapp.addEventListener('click', function () {
-  if (confirm('Vil du slette alle punktene?')) {
-    punkter = [];
-    lagrePunkter();
-    visPunkter();
-  }
 });
 
 // 6. Måleverktøy.
@@ -155,9 +212,6 @@ slettKnapp.addEventListener('click', function () {
 //    malepunkter er posisjonene vi har klikket på, i rekkefølge.
 let maler = false;
 let malepunkter = [];
-
-// En strek (polyline) som tegner linjen mellom målepunktene.
-const malelinje = L.polyline([], { color: 'red', weight: 3, dashArray: '6 6' }).addTo(kart);
 
 const maalKnapp = document.getElementById('maal-knapp');
 const nullstillKnapp = document.getElementById('nullstill-maal');
@@ -171,16 +225,30 @@ function formaterAvstand(meter) {
   return (meter / 1000).toFixed(2) + ' km';
 }
 
+// Tegner målelinjen på nytt. MapLibre tegner data i GeoJSON-format:
+// en linje (LineString) gjennom alle punktene, og et punkt for hvert klikk.
+function tegnMaling() {
+  const koordinater = malepunkter.map(function (p) { return [p.lng, p.lat]; });
+  const punktene = koordinater.map(function (k) {
+    return { type: 'Feature', geometry: { type: 'Point', coordinates: k }, properties: {} };
+  });
+  const linjen = { type: 'Feature', geometry: { type: 'LineString', coordinates: koordinater }, properties: {} };
+  kart.getSource('maling').setData({
+    type: 'FeatureCollection',
+    features: [linjen].concat(punktene)
+  });
+}
+
 // Legger til et punkt i målingen og regner ut total avstand på nytt.
 function leggTilMalepunkt(posisjon) {
   malepunkter.push(posisjon);
-  malelinje.setLatLngs(malepunkter);
+  tegnMaling();
 
   // Legg sammen avstanden mellom hvert punkt og det neste.
-  // kart.distance() regner ut avstanden i meter langs jordoverflaten.
+  // distanceTo() regner ut avstanden i meter langs jordoverflaten.
   let total = 0;
   for (let i = 1; i < malepunkter.length; i++) {
-    total += kart.distance(malepunkter[i - 1], malepunkter[i]);
+    total += malepunkter[i - 1].distanceTo(malepunkter[i]);
   }
 
   avstandTekst.textContent = 'Avstand: ' + formaterAvstand(total);
@@ -191,13 +259,13 @@ maalKnapp.addEventListener('click', function () {
   maler = !maler; // ! snur true til false og omvendt
   maalKnapp.textContent = maler ? 'Stopp måling' : 'Start måling';
   maalKnapp.classList.toggle('aktiv', maler);
-  document.getElementById('kart').classList.toggle('maler', maler);
+  kart.getCanvas().style.cursor = maler ? 'crosshair' : '';
 });
 
 // Fjern målelinjen og start på nytt.
 nullstillKnapp.addEventListener('click', function () {
   malepunkter = [];
-  malelinje.setLatLngs([]);
+  tegnMaling();
   avstandTekst.textContent = 'Avstand: 0 m';
 });
 
@@ -227,17 +295,23 @@ function formaterDato(dato) {
   return deler[2] + '.' + deler[1] + '.' + deler[0];
 }
 
-// Lager nettadressen til GetFeatureInfo-forespørselen.
-// Serveren trenger å vite hvilket kartutsnitt vi ser på (BBOX), hvor stort
-// bildet er i piksler (WIDTH/HEIGHT), og hvilken piksel vi klikket på (I/J).
-function lagPlaninfoUrl(latlng) {
-  const storrelse = kart.getSize();
-  const piksel = kart.latLngToContainerPoint(latlng).round();
+// Gjør grader om til meter i kartprojeksjonen Web Mercator (EPSG:3857),
+// som er det plantjenesten bruker.
+function tilMeter(lngLat) {
+  const R = 6378137; // jordens radius i meter
+  const x = R * lngLat.lng * Math.PI / 180;
+  const y = R * Math.log(Math.tan(Math.PI / 4 + lngLat.lat * Math.PI / 360));
+  return { x: x, y: y };
+}
 
-  // Gjør kartutsnittets hjørner om fra grader til meter (EPSG:3857).
-  const utsnitt = kart.getBounds();
-  const sorvest = kart.options.crs.project(utsnitt.getSouthWest());
-  const nordost = kart.options.crs.project(utsnitt.getNorthEast());
+// Lager nettadressen til GetFeatureInfo-forespørselen.
+// Vi later som vi har et lite kartbilde på 101 × 101 piksler med klikket
+// midt i (piksel 50, 50), og ber serveren fortelle hva som ligger der.
+// Størrelsen på en piksel i meter følger zoomnivået, som i kartet.
+function lagPlaninfoUrl(lngLat) {
+  const midt = tilMeter(lngLat);
+  const meterPerPiksel = 40075016.686 / (512 * Math.pow(2, kart.getZoom()));
+  const halv = 50 * meterPerPiksel;
 
   const parametere = new URLSearchParams({
     SERVICE: 'WMS',
@@ -247,11 +321,11 @@ function lagPlaninfoUrl(latlng) {
     QUERY_LAYERS: PLAN_LAG,
     STYLES: '',
     CRS: 'EPSG:3857',
-    BBOX: [sorvest.x, sorvest.y, nordost.x, nordost.y].join(','),
-    WIDTH: storrelse.x,
-    HEIGHT: storrelse.y,
-    I: piksel.x,
-    J: piksel.y,
+    BBOX: [midt.x - halv, midt.y - halv, midt.x + halv, midt.y + halv].join(','),
+    WIDTH: 101,
+    HEIGHT: 101,
+    I: 50,
+    J: 50,
     INFO_FORMAT: 'application/json',
     FEATURE_COUNT: 20
   });
@@ -318,26 +392,44 @@ function lagPlaninfoHtml(objekter) {
 
 // Viser en popup der brukeren klikket, og fyller den med planinformasjon.
 // "async" betyr at funksjonen kan vente på svar fra nettet med "await".
-async function visPlaninfo(latlng) {
-  const popup = L.popup({ maxWidth: 320 })
-    .setLatLng(latlng)
-    .setContent('Henter planinformasjon …')
-    .openOn(kart);
+async function visPlaninfo(lngLat) {
+  const popup = new maplibregl.Popup({ maxWidth: '320px' })
+    .setLngLat(lngLat)
+    .setHTML('Henter planinformasjon …')
+    .addTo(kart);
 
   try {
-    const svar = await fetch(lagPlaninfoUrl(latlng));
+    const svar = await fetch(lagPlaninfoUrl(lngLat));
     if (!svar.ok) {
       throw new Error('Serveren svarte med feilkode ' + svar.status);
     }
     const data = await svar.json();
-    popup.setContent(lagPlaninfoHtml(data.features || []));
+    popup.setHTML(lagPlaninfoHtml(data.features || []));
   } catch (feil) {
     // Hit kommer vi hvis nettet er nede, serveren har feil, eller
     // nettleseren blokkerer svaret (CORS). Detaljer vises i konsollen (F12).
     console.error('Klarte ikke hente planinformasjon:', feil);
-    popup.setContent('Klarte ikke hente planinformasjon. Prøv igjen senere.');
+    popup.setHTML('Klarte ikke hente planinformasjon. Prøv igjen senere.');
   }
 }
 
-// 8. Vis punktene som allerede var lagret da siden ble åpnet.
-visPunkter();
+// 8. Når kartet er ferdig lastet: legg til målelinjen og vis lagrede punkter.
+kart.on('load', function () {
+  // En tom GeoJSON-kilde som tegnMaling() fyller med linje og punkter.
+  kart.addSource('maling', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  kart.addLayer({
+    id: 'maling-linje',
+    type: 'line',
+    source: 'maling',
+    paint: { 'line-color': 'red', 'line-width': 3, 'line-dasharray': [2, 2] }
+  });
+  kart.addLayer({
+    id: 'maling-punkter',
+    type: 'circle',
+    source: 'maling',
+    filter: ['==', ['geometry-type'], 'Point'], // bare punktene, ikke linjen
+    paint: { 'circle-radius': 4, 'circle-color': 'white', 'circle-stroke-color': 'red', 'circle-stroke-width': 2 }
+  });
+
+  visPunkter();
+});
