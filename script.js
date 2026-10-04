@@ -79,6 +79,24 @@ const kart = new maplibregl.Map({
   attributionControl: false // vi legger til vår egen under, med OSM alltid med
 });
 
+// Kartoppsettet (stilen) lastes litt etter at kartet er laget. Lag og kilder
+// kan først legges til når det er klart. Vi venter IKKE på hendelsen 'load',
+// for den kommer først når alle kartbildene er hentet, og hvis noen av dem
+// feiler, kan den utebli helt. Da ville 3D-bygningene aldri blitt lagt til.
+let kartetErKlart = false;
+kart.once('style.load', function () {
+  kartetErKlart = true;
+});
+
+// Kjører en funksjon når kartoppsettet er klart (med en gang hvis det allerede er det).
+function narKartetErKlart(funksjon) {
+  if (kartetErKlart) {
+    funksjon();
+  } else {
+    kart.once('style.load', funksjon);
+  }
+}
+
 // Knapper for zoom og rotasjon. Kompasset nullstiller rotasjon og vipping.
 kart.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-left');
 // Krediteringsfeltet nederst til høyre. compact: false = alltid utfoldet.
@@ -413,8 +431,8 @@ async function visPlaninfo(lngLat) {
   }
 }
 
-// 8. Når kartet er ferdig lastet: legg til målelinjen og vis lagrede punkter.
-kart.on('load', function () {
+// 8. Når kartoppsettet er klart: legg til målelinjen og vis lagrede punkter.
+narKartetErKlart(function () {
   // En tom GeoJSON-kilde som tegnMaling() fyller med linje og punkter.
   kart.addSource('maling', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   kart.addLayer({

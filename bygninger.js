@@ -173,7 +173,8 @@ function leggTilRivinger(bygninger) {
       if (rivning.merknad) {
         bygg.properties.merknad = rivning.merknad;
       }
-    } else {
+    } else if (bygninger.length > 0) {
+      // (Bare advar når bygningene fra OpenStreetMap faktisk er hentet.)
       console.warn('Fant ikke bygningen ' + rivning.osmId + ' fra campus-data.js på campus.');
     }
   });
@@ -248,7 +249,7 @@ function lagAarsfilter(aar) {
 function visAar() {
   const aar = Number(aarSlider.value);
   aarTekst.textContent = aar;
-  // Laget finnes først når kartet er ferdig lastet (se nederst i filen).
+  // Laget finnes først når kartoppsettet er klart (se nederst i filen).
   if (kart.getLayer('bygninger-3d')) {
     kart.setFilter('bygninger-3d', lagAarsfilter(aar));
   }
@@ -331,7 +332,7 @@ function visBygningsinfo(hendelse) {
 
 // ---------- Legg til lagene når kartet er klart ----------
 
-kart.on('load', function () {
+narKartetErKlart(function () {
   const o = CAMPUS_OMRADE;
 
   // En stiplet ramme som viser hvor 3D-området er.
