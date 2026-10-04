@@ -70,6 +70,52 @@
         <li><span class="farge rives"></span> Skal rives</li>
       </ul>
 
+      <!-- Redigeringsmodus (styres av rediger.js) -->
+      <h2>Rediger bygg</h2>
+      <p class="hjelp">Tegn, flytt og endre nye bygg direkte i kartet, eller merk eksisterende bygg for riving.</p>
+      <p id="utkast-melding" class="utkast" hidden>Du har endringer som ikke er lagt inn i campus-data.js ennå.
+        Bruk «Kopier kode» når du er fornøyd.</p>
+      <button id="rediger-knapp">Rediger bygg</button>
+
+      <div id="rediger-panel" hidden>
+        <ul class="hjelp rediger-hjelp">
+          <li><strong>Velg:</strong> klikk på et oransje bygg.</li>
+          <li><strong>Flytt:</strong> dra i det valgte (blå) bygget.</li>
+          <li><strong>Endre form:</strong> dra i de hvite hjørnene. Dra i en liten blå prikk for å lage et nytt hjørne.</li>
+          <li><strong>Riving:</strong> klikk på et grått bygg og skriv inn riveår.</li>
+        </ul>
+        <button id="tegn-knapp">Tegn nytt bygg</button>
+
+        <!-- Skjema for valgt nytt bygg -->
+        <div id="bygg-skjema" class="skjema" hidden>
+          <label>Navn <input type="text" id="felt-navn"></label>
+          <label>Byggeår <input type="number" id="felt-byggeaar" min="1800" max="2200"></label>
+          <label>Høyde (meter) <input type="number" id="felt-hoyde" min="1" max="300" step="0.5"></label>
+          <label>Riveår (valgfritt) <input type="number" id="felt-riveaar" min="1800" max="2200"></label>
+          <div class="knapperad">
+            <button id="slett-hjorne" disabled>Slett valgt hjørne</button>
+            <button id="slett-bygg">Slett bygg</button>
+          </div>
+        </div>
+
+        <!-- Skjema for riving av eksisterende bygg -->
+        <div id="rivings-skjema" class="skjema" hidden>
+          <strong id="rivings-navn"></strong>
+          <label>Riveår (tomt = skal ikke rives) <input type="number" id="felt-riving-aar" min="1800" max="2200"></label>
+          <label>Merknad (valgfritt) <input type="text" id="felt-merknad"></label>
+        </div>
+
+        <p id="rediger-status" class="hjelp"></p>
+
+        <h3>Lagre endringene</h3>
+        <div class="knapperad">
+          <button id="kopier-kode">Kopier kode</button>
+          <button id="last-ned">Last ned fil</button>
+          <button id="forkast">Forkast endringer</button>
+        </div>
+        <textarea id="kode-ut" rows="8" readonly hidden></textarea>
+      </div>
+
       <!-- Hjelpetekst for reguleringsplan-laget -->
       <h2>Reguleringsplaner</h2>
       <p class="hjelp">Slå på «Reguleringsplaner» i lagmenyen oppe til høyre i kartet.
@@ -86,5 +132,6 @@
   <!-- Vår egen kode. Må komme ETTER MapLibre, fordi den bruker MapLibre -->
   <script src="script.js"></script>
   <script src="bygninger.js"></script>
+  <script src="rediger.js"></script>
 </body>
 </html>

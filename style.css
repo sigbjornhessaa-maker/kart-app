@@ -212,3 +212,79 @@ button {
 .farge.eksisterende { background: #d8d2c8; }
 .farge.ny { background: #e67e22; }
 .farge.rives { background: #c0392b; }
+
+/* Redigeringsmodus */
+#rediger-knapp.aktiv,
+#tegn-knapp.aktiv {
+  background: #1f4e79;
+  color: white;
+}
+
+#rediger-panel {
+  margin-top: 10px;
+}
+
+#rediger-panel h3 {
+  margin: 16px 0 6px;
+  font-size: 1rem;
+}
+
+.rediger-hjelp {
+  padding-left: 18px;
+  margin: 0 0 10px;
+}
+
+.rediger-hjelp li {
+  margin-bottom: 4px;
+}
+
+/* Skjemaene: hver ledetekst på egen linje med feltet under */
+.skjema {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+  background: #eef3f8;
+  border-radius: 6px;
+}
+
+.skjema label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  gap: 2px;
+}
+
+.skjema input {
+  padding: 5px;
+  font-size: 1rem;
+}
+
+.knapperad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#kode-ut {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+/* Melding om ulagrede endringer */
+.utkast {
+  padding: 8px;
+  background: #fff4d6;
+  border-left: 4px solid #e6a700;
+  font-size: 0.9rem;
+}
+
+/* Sørg for at elementer med hidden-attributtet alltid er skjult,
+   også når de har display: flex fra reglene over. */
+[hidden] {
+  display: none !important;
+}

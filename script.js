@@ -189,9 +189,14 @@ slettKnapp.addEventListener('click', function () {
 });
 
 // 5. Klikk i kartet. Hva som skjer, avhenger av hva som er slått på:
-//    måling → målepunkt, bygning → bygningsinfo, planlag → planinfo,
+//    redigering → rediger.js, måling → målepunkt, bygning → bygningsinfo, planlag → planinfo,
 //    ellers → spør om navn og legg til et punkt.
 kart.on('click', function (hendelse) {
+  // I redigeringsmodus tar rediger.js seg av alle klikk i kartet.
+  if (redigeringsklikk(hendelse)) {
+    return;
+  }
+
   // hendelse.lngLat er stedet på bakken der brukeren klikket.
   if (maler) {
     leggTilMalepunkt(hendelse.lngLat);

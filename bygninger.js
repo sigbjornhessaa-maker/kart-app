@@ -231,6 +231,9 @@ async function hentOsmBygninger() {
 
 // ---------- Tidslinjen ----------
 
+// Mens du redigerer (rediger.js), tegnes de nye byggene flatt i stedet for i 3D.
+let skjulNyeI3D = false;
+
 // Lager et filter som bare slipper gjennom bygninger som står i året "aar".
 // En bygning står hvis den er bygget (byggeår <= aar) og ikke revet (riveår > aar).
 function lagAarsfilter(aar) {
@@ -243,7 +246,11 @@ function lagAarsfilter(aar) {
     // Bygninger uten kjent byggeår vises alltid
     bygget = ['<=', ['coalesce', ['get', 'byggeaar'], 0], aar];
   }
-  return ['all', bygget, ikkeRevet];
+  const filter = ['all', bygget, ikkeRevet];
+  if (skjulNyeI3D) {
+    filter.push(['!=', ['get', 'kilde'], 'ny']);
+  }
+  return filter;
 }
 
 function visAar() {
