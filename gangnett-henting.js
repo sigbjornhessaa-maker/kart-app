@@ -27,7 +27,9 @@ function lagGangnettSporring() {
   return '[out:json][timeout:90];' +
     'way["highway"~"^(' + GANGBARE_VEITYPER.join('|') + ')$"]' +
     '(' + o.sor + ',' + o.vest + ',' + o.nord + ',' + o.ost + ');' +
-    'out geom tags;';
+    // «out geom» gir både egenskapene (tags) og koordinatene til hver vei.
+    // (NB: «out tags» ville bare gitt egenskapene, uten koordinater.)
+    'out geom;';
 }
 
 // Kan man gå her? Nei hvis det er forbudt for gående eller privat.
@@ -73,6 +75,9 @@ function overpassTilGangnett(data) {
       }
     });
   });
+  if (linjer.length === 0) {
+    throw new Error('Svaret fra OpenStreetMap inneholdt ingen stier eller veier');
+  }
   return { type: 'FeatureCollection', features: linjer };
 }
 

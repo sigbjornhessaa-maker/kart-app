@@ -646,7 +646,7 @@ document.getElementById('hent-nett-knapp').addEventListener('click', async funct
       'last den opp til mappa data/ på GitHub («Add file» → «Upload files») for å erstatte den gamle.';
   } catch (feil) {
     console.error(feil);
-    nettStatus.textContent = 'Klarte ikke hente gangnettet. Prøv igjen senere.';
+    nettStatus.textContent = 'Klarte ikke hente gangnettet (' + feil.message + '). Prøv igjen om litt.';
   }
 });
 
@@ -660,7 +660,8 @@ async function start() {
       brukGangnett(await hentGangnettDirekte());
     } catch (feil) {
       console.error(feil);
-      nettStatus.textContent = 'Fant ikke data/gangnett.js, og klarte ikke hente gangnettet fra OpenStreetMap.';
+      nettStatus.textContent = 'Fant ikke data/gangnett.js, og klarte ikke hente gangnettet fra OpenStreetMap (' +
+        feil.message + '). Last siden på nytt for å prøve igjen.';
       return;
     }
   }
