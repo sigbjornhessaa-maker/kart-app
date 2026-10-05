@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<!-- gangtrafikk.html: egen side som viser beregnet gangtrafikk på campus. -->
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gangtrafikk på campus</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <nav class="sidemeny">
+      <a href="index.html">Campus i 3D</a>
+      <a href="gangtrafikk.html" aria-current="page">Gangtrafikk</a>
+    </nav>
+    <h1>Gangtrafikk på campus</h1>
+    <p>Beregnet antall gående per time langs gang- og sykkelnettet. Tallene er oppdiktede eksempler.</p>
+  </header>
+
+  <main>
+    <div id="kart-omrade">
+      <div id="kart"></div>
+
+      <!-- Tidsslider for døgnet -->
+      <div class="tidslinje">
+        <button id="spill-knapp" title="Spill av time for time">▶</button>
+        <input type="range" id="time-slider" min="0" max="23" step="1" value="8" aria-label="Time på døgnet">
+        <span id="time-tekst">08:00–09:00</span>
+        <span id="time-sum" class="hjelp"></span>
+      </div>
+    </div>
+
+    <aside>
+      <h2>Døgnprofil</h2>
+      <p class="hjelp">Antall personer fra alle startpunkter per time. Klikk på en søyle for å velge timen.</p>
+      <!-- Søylediagrammet lages av gangtrafikk.js -->
+      <div id="dognprofil" class="dognprofil" role="img" aria-label="Antall personer per time gjennom døgnet"></div>
+      <div class="dognprofil-akse"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
+      <div id="profil-tips" class="profil-tips" hidden></div>
+
+      <h2>Tegnforklaring</h2>
+      <ul class="tegnforklaring">
+        <li><span class="prikk holdeplass"></span> Holdeplass</li>
+        <li><span class="prikk bolig"></span> Boligområde</li>
+        <li><span class="prikk sykkel"></span> Sykkelparkering</li>
+        <li><span class="prikk mal"></span> Mål (bygning)</li>
+      </ul>
+      <div class="varmeskala">
+        <span>Få</span><span class="varmeskala-farger"></span><span>Mange gående</span>
+      </div>
+
+      <!-- Tabell over startpunkter og mål for valgt time (lages av gangtrafikk.js) -->
+      <h2 id="tabell-tittel">Kl. 08–09</h2>
+      <table class="tall-tabell">
+        <thead><tr><th>Startpunkt</th><th>Personer</th></tr></thead>
+        <tbody id="start-tabell"></tbody>
+      </table>
+      <table class="tall-tabell">
+        <thead><tr><th>Mål</th><th>Andel</th></tr></thead>
+        <tbody id="mal-tabell"></tbody>
+      </table>
+      <p id="advarsler" class="utkast" hidden></p>
+
+      <h2>Gangnettet</h2>
+      <p id="nett-status" class="hjelp"></p>
+      <button id="hent-nett-knapp">Hent gangnett på nytt</button>
+      <p class="hjelp">Henter stier og veier fra OpenStreetMap og lar deg laste ned <code>data/gangnett.js</code>.</p>
+    </aside>
+  </main>
+
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <!-- Gangnettet fra OpenStreetMap (lagret som fil). Mangler fila, henter siden nettet selv. -->
+  <script src="data/gangnett.js"></script>
+  <!-- Din datafil med startpunkter, mål og tall -->
+  <script src="gangtrafikk-data.js"></script>
+  <script src="gangnett-henting.js"></script>
+  <script src="gangtrafikk.js"></script>
+</body>
+</html>

@@ -8,6 +8,8 @@ Mitt første kart-app prosjekt: et kart over Trondheim laget med MapLibre GL.
   og kopier ferdig kode til `campus-data.js`.
 - Bytt mellom gatekart, topografisk kart og satellittbilder.
 - Legg til egne punkter, mål avstander og se vedtatte reguleringsplaner (fra DiBK).
+- Egen side for gangtrafikk (`gangtrafikk.html`): beregnede ruter fra startpunkter til
+  bygninger langs gangnettet, vist som heatmap med tidsslider for døgnet.
 
 ## Filer
 - `index.html` – strukturen på siden (kart, lagmeny, tidslinje, sidepanel).
@@ -16,6 +18,11 @@ Mitt første kart-app prosjekt: et kart over Trondheim laget med MapLibre GL.
 - `bygninger.js` – 3D-bygningene: henter fra OpenStreetMap og styrer tidslinjen.
 - `rediger.js` – redigeringsmodusen («Rediger bygg» i sidepanelet).
 - `campus-data.js` – **din datafil** med nye bygninger og rivinger. Se kommentarene i filen.
+- `gangtrafikk.html` / `gangtrafikk.js` – siden for gangtrafikk: rutesøk og heatmap.
+- `gangtrafikk-data.js` – **din datafil** med startpunkter, mål og tall per time.
+- `gangnett-henting.js` – henter gang- og sykkelnettet fra OpenStreetMap.
+- `data/gangnett.js` – gangnettet lagret som fil (lag den med «Hent gangnett på nytt»
+  på gangtrafikksiden, eller `node verktoy/hent-gangnett.js`).
 - `arealformal.js` – oversetter arealformål-koder (f.eks. 2011) til tekst (Kjøreveg).
 
 ## Kjøre lokalt

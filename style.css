@@ -6,6 +6,10 @@ body {
   font-family: system-ui, sans-serif;
   background: #f4f6f8;
   color: #222;
+  /* Toppfeltet øverst, og resten (main) fyller skjermen under */
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
 }
 
 header {
@@ -23,10 +27,37 @@ header p {
   margin: 4px 0 0;
 }
 
+/* Menyen mellom sidene i appen */
+.sidemeny {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.sidemeny a {
+  color: white;
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sidemeny a:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Siden du er på */
+.sidemeny a[aria-current="page"] {
+  background: white;
+  color: #1f4e79;
+  font-weight: bold;
+}
+
 /* Kartet og listen ligger side om side (flexbox) */
 main {
   display: flex;
-  height: calc(100vh - 80px); /* hele skjermhøyden minus toppfeltet */
+  flex: 1;        /* fyll plassen under toppfeltet */
+  min-height: 0;  /* la innholdet krympe, så sidepanelet kan scrolle */
 }
 
 /* Kartområdet tar all plass ved siden av panelet. position: relative gjør
@@ -78,6 +109,9 @@ button {
 
 /* På smale skjermer (mobil): legg listen under kartet */
 @media (max-width: 700px) {
+  body {
+    height: auto;
+  }
   main {
     flex-direction: column;
     height: auto;
@@ -281,6 +315,124 @@ button {
   background: #fff4d6;
   border-left: 4px solid #e6a700;
   font-size: 0.9rem;
+}
+
+/* ---------- Gangtrafikk-siden ---------- */
+
+/* Fargeprikker for startpunkter og mål (samme farger som i kartet) */
+.prikk {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px #8a8984;
+  vertical-align: middle;
+}
+
+.prikk.holdeplass { background: #eb6834; }
+.prikk.bolig { background: #1baf7a; }
+.prikk.sykkel { background: #4a3aa7; }
+.prikk.mal { background: #2b2b2a; }
+
+/* Fargeskalaen for heatmapet: lys = få, mørk = mange */
+.varmeskala {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #52514e;
+}
+
+.varmeskala-farger {
+  flex: 1;
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #cde2fb, #86b6ef, #3987e5, #256abf, #104281, #0d366b);
+}
+
+/* Døgnprofilen: 24 søyler, én per time */
+.dognprofil {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 90px;
+  border-bottom: 1px solid #c3c2b7;
+}
+
+.dognprofil .soyle {
+  flex: 1;
+  height: var(--hoyde);
+  min-height: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px 4px 0 0;
+  background: #86b6ef;
+  cursor: pointer;
+}
+
+.dognprofil .soyle:hover {
+  background: #3987e5;
+}
+
+/* Valgt time */
+.dognprofil .soyle.valgt {
+  background: #104281;
+}
+
+.dognprofil-akse {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #52514e;
+  margin-top: 2px;
+}
+
+.profil-tips {
+  font-size: 0.85rem;
+  margin-top: 4px;
+  color: #0b0b0b;
+}
+
+/* Tabellene med tall for valgt time */
+.tall-tabell {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+
+.tall-tabell th {
+  text-align: left;
+  color: #52514e;
+  font-weight: normal;
+  border-bottom: 1px solid #c3c2b7;
+  padding: 2px 0;
+}
+
+.tall-tabell td {
+  padding: 3px 0;
+  border-bottom: 1px solid #eeede9;
+}
+
+/* Tallkolonnen høyrejusteres, så sifrene står under hverandre */
+.tall-tabell th:last-child,
+.tall-tabell td:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+#time-tekst {
+  font-weight: bold;
+  font-size: 1.2rem;
+  min-width: 7.5em;
+}
+
+#time-slider {
+  flex: 1;
+  min-width: 150px;
 }
 
 /* Sørg for at elementer med hidden-attributtet alltid er skjult,
