@@ -435,6 +435,147 @@ button {
   min-width: 150px;
 }
 
+/* Startpunkt og holdeplass i tegnforklaringen */
+.prikk.start { background: #eb6834; }
+.prikk.holdeplass { background: white; box-shadow: 0 0 0 2px #4a3aa7; border-color: white; }
+
+/* Streker i tegnforklaringen */
+.strek {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-top: 3px solid;
+}
+
+.strek.buss { border-color: #4a3aa7; }
+.strek.snarvei { border-top-style: dashed; border-color: #1baf7a; }
+.strek.tilforsel { border-top: 2px dotted #52514e; }
+
+/* Avkrysningsbokser i en kolonne */
+.valgliste {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.95rem;
+}
+
+/* Tabell med tre kolonner: de to siste høyrejusteres */
+.tall-tabell.tre-kolonner td:nth-child(2),
+.tall-tabell.tre-kolonner th:nth-child(2) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding-right: 10px;
+}
+
+#nytt-start-knapp.aktiv,
+#nytt-mal-knapp.aktiv,
+#ny-snarvei-knapp.aktiv,
+#scenario-knapp.aktiv {
+  background: #1f4e79;
+  color: white;
+}
+
+/* Glidebrytere for reisemåter: navn, bryter og prosent på én linje */
+.reisemiddel {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reisemiddel legend {
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.reisemiddel label {
+  display: grid;
+  grid-template-columns: 7.5em 1fr 3em;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+/* Glidebryteren har en innebygd minstebredde; la den krympe så prosenten får plass */
+.reisemiddel input[type="range"] {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+}
+
+.reisemiddel output {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Søyleredigereren: 24 søyler man kan dra i */
+.soyle-topp {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  gap: 8px;
+}
+
+.soyle-topp label {
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+}
+
+.soyle-topp input {
+  width: 4.5em;
+  padding: 2px 4px;
+  font-size: 0.85rem;
+}
+
+.soyle-felt {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 110px;
+  margin-top: 6px;
+  padding-top: 4px;
+  border-bottom: 1px solid #c3c2b7;
+  background: repeating-linear-gradient(to top, transparent 0, transparent 26px, #e2e1dc 26px, #e2e1dc 27px);
+  cursor: ns-resize;
+  touch-action: none; /* la fingeren dra i søylene i stedet for å scrolle */
+}
+
+.soyle-felt .soyle {
+  flex: 1;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+  background: #86b6ef;
+}
+
+.soyle-felt .soyle.valgt {
+  background: #104281;
+}
+
+.soyle-rad {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 0.9rem;
+}
+
+.soyle-rad input {
+  width: 5em;
+  padding: 4px;
+}
+
+.soyle-rad button {
+  padding: 4px 8px;
+}
+
 /* Sørg for at elementer med hidden-attributtet alltid er skjult,
    også når de har display: flex fra reglene over. */
 [hidden] {

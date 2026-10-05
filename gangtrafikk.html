@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- gangtrafikk.html: egen side som viser beregnet gangtrafikk på campus. -->
+<!-- gangtrafikk.html: egen side som viser beregnet trafikk til campus. -->
 <html lang="no">
 <head>
   <meta charset="UTF-8">
@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
   <!-- ?v=dato bak filnavnene tvinger nettleseren til å hente nye versjoner
        i stedet for gamle kopier. Endre datoen når du endrer en fil. -->
-  <link rel="stylesheet" href="style.css?v=2026-10-05b">
+  <link rel="stylesheet" href="style.css?v=2026-10-06">
 </head>
 <body>
   <header>
@@ -17,7 +17,7 @@
       <a href="gangtrafikk.html" aria-current="page">Gangtrafikk</a>
     </nav>
     <h1>Gangtrafikk på campus</h1>
-    <p>Beregnet antall gående per time langs gang- og sykkelnettet. Tallene er oppdiktede eksempler.</p>
+    <p>Beregnet trafikk per time fra boområder til bygningene på campus. Tallene er oppdiktede eksempler.</p>
   </header>
 
   <main>
@@ -36,27 +36,44 @@
     <aside>
       <h2>Døgnprofil</h2>
       <p class="hjelp">Antall personer fra alle startpunkter per time. Klikk på en søyle for å velge timen.</p>
-      <!-- Søylediagrammet lages av gangtrafikk.js -->
       <div id="dognprofil" class="dognprofil" role="img" aria-label="Antall personer per time gjennom døgnet"></div>
       <div class="dognprofil-akse"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
       <div id="profil-tips" class="profil-tips" hidden></div>
 
-      <h2>Tegnforklaring</h2>
-      <ul class="tegnforklaring">
-        <li><span class="prikk holdeplass"></span> Holdeplass</li>
-        <li><span class="prikk bolig"></span> Boligområde</li>
-        <li><span class="prikk sykkel"></span> Sykkelparkering</li>
-        <li><span class="prikk mal"></span> Mål (bygning)</li>
-      </ul>
-      <div class="varmeskala">
-        <span>Få</span><span class="varmeskala-farger"></span><span>Mange gående</span>
+      <h2>Vis i kartet</h2>
+      <div class="valgliste">
+        <label><input type="checkbox" id="vis-gange" checked> Gående (også fra bussen)</label>
+        <label><input type="checkbox" id="vis-sykkel" checked> Sykkel</label>
+        <label><input type="checkbox" id="vis-sparkesykkel" checked> Elsparkesykkel</label>
+        <label><input type="checkbox" id="vis-buss" checked> Bussruter og holdeplasser</label>
       </div>
 
-      <!-- Tabell over startpunkter og mål for valgt time (lages av gangtrafikk.js) -->
+      <h2>Tegnforklaring</h2>
+      <ul class="tegnforklaring">
+        <li><span class="prikk start"></span> Startpunkt (boområde)</li>
+        <li><span class="prikk mal"></span> Mål (bygning)</li>
+        <li><span class="prikk holdeplass"></span> Holdeplass på campus</li>
+        <li><span class="strek buss"></span> Bussrute (tykkere = flere av våre)</li>
+        <li><span class="strek snarvei"></span> Snarvei</li>
+        <li><span class="strek tilforsel"></span> Fra startpunkt til gangnettet</li>
+      </ul>
+      <div class="varmeskala">
+        <span>Få</span><span class="varmeskala-farger"></span><span>Mange</span>
+      </div>
+
+      <!-- Tabeller for valgt time (lages av gangtrafikk.js) -->
       <h2 id="tabell-tittel">Kl. 08–09</h2>
+      <table class="tall-tabell tre-kolonner">
+        <thead><tr><th>Reisemåte</th><th>Personer</th><th>Andel</th></tr></thead>
+        <tbody id="reisemiddel-tabell"></tbody>
+      </table>
       <table class="tall-tabell">
         <thead><tr><th>Startpunkt</th><th>Personer</th></tr></thead>
         <tbody id="start-tabell"></tbody>
+      </table>
+      <table class="tall-tabell">
+        <thead><tr><th>Buss</th><th>Passasjerer</th></tr></thead>
+        <tbody id="buss-tabell"></tbody>
       </table>
       <table class="tall-tabell">
         <thead><tr><th>Mål</th><th>Andel</th></tr></thead>
@@ -64,19 +81,86 @@
       </table>
       <p id="advarsler" class="utkast" hidden></p>
 
-      <h2>Gangnettet</h2>
+      <!-- Redigering av scenarioet (styres av gangtrafikk-rediger.js) -->
+      <h2>Rediger scenario</h2>
+      <p class="hjelp">Juster startpunkter, antall per time, reisemåter, mål og snarveier direkte i kartet.</p>
+      <p id="scenario-utkast" class="utkast" hidden>Du har endringer som ikke er lagt inn i gangtrafikk-data.js ennå.
+        Bruk «Kopier kode» når du er fornøyd.</p>
+      <button id="scenario-knapp">Rediger scenario</button>
+
+      <div id="scenario-panel" hidden>
+        <ul class="hjelp rediger-hjelp">
+          <li><strong>Velg:</strong> klikk på et startpunkt (oransje), et mål (svart) eller en snarvei (grønn).</li>
+          <li><strong>Flytt:</strong> dra i det valgte punktet.</li>
+          <li><strong>Timetall:</strong> dra opp og ned i søylene, eller skriv tallet for én time.</li>
+        </ul>
+        <div class="knapperad">
+          <button id="nytt-start-knapp">Nytt startpunkt</button>
+          <button id="nytt-mal-knapp">Nytt mål</button>
+          <button id="ny-snarvei-knapp">Tegn snarvei</button>
+        </div>
+
+        <!-- Skjema for valgt startpunkt -->
+        <div id="start-skjema" class="skjema" hidden>
+          <label>Navn <input type="text" id="start-navn"></label>
+          <fieldset class="reisemiddel">
+            <legend>Reisemåter</legend>
+            <label><span>Gange</span><input type="range" min="0" max="100" step="5" data-modus="gange"><output></output></label>
+            <label><span>Sykkel</span><input type="range" min="0" max="100" step="5" data-modus="sykkel"><output></output></label>
+            <label><span>Buss</span><input type="range" min="0" max="100" step="5" data-modus="buss"><output></output></label>
+            <label><span>Elsparkesykkel</span><input type="range" min="0" max="100" step="5" data-modus="sparkesykkel"><output></output></label>
+          </fieldset>
+          <div class="soyleredigerer" id="start-soyler"></div>
+          <div class="knapperad">
+            <button id="slett-start">Slett startpunkt</button>
+          </div>
+        </div>
+
+        <!-- Skjema for valgt mål -->
+        <div id="mal-skjema" class="skjema" hidden>
+          <label>Navn <input type="text" id="mal-navn"></label>
+          <div class="soyleredigerer" id="mal-soyler"></div>
+          <div class="knapperad">
+            <button id="slett-mal">Slett mål</button>
+          </div>
+        </div>
+
+        <!-- Skjema for valgt snarvei -->
+        <div id="snarvei-skjema" class="skjema" hidden>
+          <label>Navn <input type="text" id="snarvei-navn"></label>
+          <div class="knapperad">
+            <button id="slett-snarvei">Slett snarvei</button>
+          </div>
+        </div>
+
+        <p id="scenario-status" class="hjelp"></p>
+
+        <h3>Lagre endringene</h3>
+        <div class="knapperad">
+          <button id="scenario-kopier">Kopier kode</button>
+          <button id="scenario-last-ned">Last ned fil</button>
+          <button id="scenario-forkast">Forkast endringer</button>
+        </div>
+        <textarea id="scenario-kode" rows="8" readonly hidden></textarea>
+      </div>
+
+      <h2>Kartdata</h2>
       <p id="nett-status" class="hjelp"></p>
       <button id="hent-nett-knapp">Hent gangnett på nytt</button>
-      <p class="hjelp">Henter stier og veier fra OpenStreetMap og lar deg laste ned <code>data/gangnett.js</code>.</p>
+      <p id="buss-status" class="hjelp"></p>
+      <button id="hent-buss-knapp">Hent bussruter på nytt</button>
+      <p class="hjelp">Henter fra OpenStreetMap og lar deg laste ned filene til mappa <code>data/</code>.</p>
     </aside>
   </main>
 
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-  <!-- Gangnettet fra OpenStreetMap (lagret som fil). Mangler fila, henter siden nettet selv. -->
-  <script src="data/gangnett.js?v=2026-10-05b"></script>
-  <!-- Din datafil med startpunkter, mål og tall -->
-  <script src="gangtrafikk-data.js?v=2026-10-05b"></script>
-  <script src="gangnett-henting.js?v=2026-10-05b"></script>
-  <script src="gangtrafikk.js?v=2026-10-05b"></script>
+  <!-- Kartdata fra OpenStreetMap (lagret som filer). Mangler de, henter siden dataene selv. -->
+  <script src="data/gangnett.js?v=2026-10-06"></script>
+  <script src="data/bussruter.js?v=2026-10-06"></script>
+  <!-- Din datafil med startpunkter, mål, reisemåter og snarveier -->
+  <script src="gangtrafikk-data.js?v=2026-10-06"></script>
+  <script src="kartdata-henting.js?v=2026-10-06"></script>
+  <script src="gangtrafikk.js?v=2026-10-06"></script>
+  <script src="gangtrafikk-rediger.js?v=2026-10-06"></script>
 </body>
 </html>
