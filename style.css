@@ -576,6 +576,30 @@ button {
   padding: 4px 8px;
 }
 
+/* Årstallene i hver ende av tidslinjen */
+.tid-ende {
+  font-size: 0.85rem;
+  color: #52514e;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Månedsnavnet på tidslinjen er lengre enn et årstall */
+#aar-tekst {
+  min-width: 9em;
+}
+
+/* To felt ved siden av hverandre (år og måned) */
+.to-felt {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.skjema select {
+  padding: 5px;
+  font-size: 1rem;
+}
+
 /* Sørg for at elementer med hidden-attributtet alltid er skjult,
    også når de har display: flex fra reglene over. */
 [hidden] {

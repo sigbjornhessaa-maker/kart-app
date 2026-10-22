@@ -13,7 +13,7 @@
   <!-- Vårt eget stilark -->
   <!-- ?v=dato bak filnavnene tvinger nettleseren til å hente nye versjoner
        i stedet for gamle kopier. Endre datoen når du endrer en fil. -->
-  <link rel="stylesheet" href="style.css?v=2026-10-22">
+  <link rel="stylesheet" href="style.css?v=2026-10-23">
 </head>
 <body>
   <header>
@@ -44,10 +44,13 @@
         <label><input type="checkbox" id="vis-bygninger" checked> Campus i 3D</label>
       </div>
 
-      <!-- Tidslinje: viser campus år for år (styres av bygninger.js) -->
+      <!-- Tidslinje: viser campus måned for måned fra 2020 (styres av bygninger.js).
+           Verdiene er "månedsnummer" (år × 12 + måned − 1); bygninger.js setter dem. -->
       <div class="tidslinje">
-        <button id="spill-knapp" title="Spill av år for år">▶</button>
-        <input type="range" id="aar-slider" min="1900" max="2040" step="1" value="2026">
+        <button id="spill-knapp" title="Spill av måned for måned">▶</button>
+        <span id="tid-start" class="tid-ende">2020</span>
+        <input type="range" id="aar-slider" min="24240" max="24491" step="1" value="24321" aria-label="Måned på tidslinjen">
+        <span id="tid-slutt" class="tid-ende">2040</span>
         <span id="aar-tekst">2026</span>
         <label class="hjelp"><input type="checkbox" id="skjul-ukjente"> Skjul bygninger uten kjent byggeår</label>
         <span id="bygg-status" class="hjelp"></span>
@@ -90,16 +93,22 @@
           <li><strong>Velg:</strong> klikk på et oransje bygg.</li>
           <li><strong>Flytt:</strong> dra i det valgte (blå) bygget.</li>
           <li><strong>Endre form:</strong> dra i de hvite hjørnene. Dra i en liten blå prikk for å lage et nytt hjørne.</li>
-          <li><strong>Riving:</strong> klikk på et grått bygg og skriv inn riveår.</li>
+          <li><strong>Riving:</strong> klikk på et grått bygg og skriv inn riveår (og eventuelt måned).</li>
         </ul>
         <button id="tegn-knapp">Tegn nytt bygg</button>
 
         <!-- Skjema for valgt nytt bygg -->
         <div id="bygg-skjema" class="skjema" hidden>
           <label>Navn <input type="text" id="felt-navn"></label>
-          <label>Byggeår <input type="number" id="felt-byggeaar" min="1800" max="2200"></label>
+          <div class="to-felt">
+            <label>Byggeår <input type="number" id="felt-byggeaar" min="1800" max="2200"></label>
+            <label>Måned <select id="felt-byggemaaned"><option value="">–</option><option value="1">januar</option><option value="2">februar</option><option value="3">mars</option><option value="4">april</option><option value="5">mai</option><option value="6">juni</option><option value="7">juli</option><option value="8">august</option><option value="9">september</option><option value="10">oktober</option><option value="11">november</option><option value="12">desember</option></select></label>
+          </div>
           <label>Høyde (meter) <input type="number" id="felt-hoyde" min="1" max="300" step="0.5"></label>
-          <label>Riveår (valgfritt) <input type="number" id="felt-riveaar" min="1800" max="2200"></label>
+          <div class="to-felt">
+            <label>Riveår (valgfritt) <input type="number" id="felt-riveaar" min="1800" max="2200"></label>
+            <label>Måned <select id="felt-rivemaaned"><option value="">–</option><option value="1">januar</option><option value="2">februar</option><option value="3">mars</option><option value="4">april</option><option value="5">mai</option><option value="6">juni</option><option value="7">juli</option><option value="8">august</option><option value="9">september</option><option value="10">oktober</option><option value="11">november</option><option value="12">desember</option></select></label>
+          </div>
           <div class="knapperad">
             <button id="slett-hjorne" disabled>Slett valgt hjørne</button>
             <button id="slett-bygg">Slett bygg</button>
@@ -109,7 +118,10 @@
         <!-- Skjema for riving av eksisterende bygg -->
         <div id="rivings-skjema" class="skjema" hidden>
           <strong id="rivings-navn"></strong>
-          <label>Riveår (tomt = skal ikke rives) <input type="number" id="felt-riving-aar" min="1800" max="2200"></label>
+          <div class="to-felt">
+            <label>Riveår (tomt = ikke rives) <input type="number" id="felt-riving-aar" min="1800" max="2200"></label>
+            <label>Måned <select id="felt-riving-maaned"><option value="">–</option><option value="1">januar</option><option value="2">februar</option><option value="3">mars</option><option value="4">april</option><option value="5">mai</option><option value="6">juni</option><option value="7">juli</option><option value="8">august</option><option value="9">september</option><option value="10">oktober</option><option value="11">november</option><option value="12">desember</option></select></label>
+          </div>
           <label>Merknad (valgfritt) <input type="text" id="felt-merknad"></label>
         </div>
 
@@ -141,14 +153,14 @@
     }
   </script>
   <!-- Oversettelse av arealformål-koder til tekst (brukes av script.js) -->
-  <script src="arealformal.js?v=2026-10-22"></script>
+  <script src="arealformal.js?v=2026-10-23"></script>
   <!-- Datafilen din med nye bygninger og rivinger (brukes av bygninger.js) -->
-  <script src="campus-data.js?v=2026-10-22"></script>
+  <script src="campus-data.js?v=2026-10-23"></script>
   <!-- Vår egen kode. Må komme ETTER MapLibre, fordi den bruker MapLibre -->
-  <script src="script.js?v=2026-10-22"></script>
+  <script src="script.js?v=2026-10-23"></script>
   <!-- Felles, robust henting fra OpenStreetMap (brukes av bygninger.js) -->
-  <script src="kartdata-henting.js?v=2026-10-22"></script>
-  <script src="bygninger.js?v=2026-10-22"></script>
-  <script src="rediger.js?v=2026-10-22"></script>
+  <script src="kartdata-henting.js?v=2026-10-23"></script>
+  <script src="bygninger.js?v=2026-10-23"></script>
+  <script src="rediger.js?v=2026-10-23"></script>
 </body>
 </html>

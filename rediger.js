@@ -30,6 +30,9 @@ const feltNavn = document.getElementById('felt-navn');
 const feltByggeaar = document.getElementById('felt-byggeaar');
 const feltHoyde = document.getElementById('felt-hoyde');
 const feltRiveaar = document.getElementById('felt-riveaar');
+const feltByggemaned = document.getElementById('felt-byggemaaned');
+const feltRivemaned = document.getElementById('felt-rivemaaned');
+const feltRivingManed = document.getElementById('felt-riving-maaned');
 const slettHjorneKnapp = document.getElementById('slett-hjorne');
 const slettByggKnapp = document.getElementById('slett-bygg');
 const rivingsSkjema = document.getElementById('rivings-skjema');
@@ -72,13 +75,15 @@ function standardform(data) {
       return {
         navn: b.navn || '',
         byggeår: b.byggeår || null,
+        byggemåned: b.byggemåned || null,
         høyde: b.høyde || null,
         riveår: b.riveår || null,
+        rivemåned: b.rivemåned || null,
         omriss: b.omriss.map(function (p) { return [p[0].toFixed(6), p[1].toFixed(6)]; })
       };
     }),
     rivinger: data.rivinger.map(function (r) {
-      return { osmId: r.osmId, riveår: r.riveår || null, merknad: r.merknad || null };
+      return { osmId: r.osmId, riveår: r.riveår || null, rivemåned: r.rivemåned || null, merknad: r.merknad || null };
     })
   });
 }
@@ -202,8 +207,10 @@ function oppdaterPanel() {
   if (bygg) {
     feltNavn.value = bygg.navn || '';
     feltByggeaar.value = bygg.byggeår || '';
+    feltByggemaned.value = bygg.byggemåned || '';
     feltHoyde.value = bygg.høyde || '';
     feltRiveaar.value = bygg.riveår || '';
+    feltRivemaned.value = bygg.rivemåned || '';
     slettHjorneKnapp.disabled = valgtHjorne === null || bygg.omriss.length <= 3;
   }
 
@@ -211,6 +218,7 @@ function oppdaterPanel() {
   rivingsSkjema.hidden = !valgtRivning;
   if (valgtRivning) {
     feltRivingAar.value = rivning ? rivning.riveår : '';
+    feltRivingManed.value = rivning && rivning.rivemåned ? rivning.rivemåned : '';
     feltMerknad.value = rivning && rivning.merknad ? rivning.merknad : '';
   }
 
@@ -236,25 +244,50 @@ function lesTallfelt(felt) {
   return isNaN(tall) ? null : tall;
 }
 
+// Året tidslinjen står på (slideren går i månedsnummer: år × 12 + måned − 1).
+function tidslinjeAar() {
+  return Math.floor(Number(aarSlider.value) / 12);
+}
+
+function tidslinjeManed() {
+  return Number(aarSlider.value) % 12 + 1;
+}
+
+// Setter eller fjerner en valgfri måned (tomt valg = ingen måned).
+function settManed(objekt, navn, felt) {
+  const maned = lesTallfelt(felt);
+  if (maned) {
+    objekt[navn] = maned;
+  } else {
+    delete objekt[navn];
+  }
+}
+
 function skjemaEndret() {
   const bygg = CAMPUS_DATA.nyeBygninger[valgtBygg];
   if (!bygg) {
     return;
   }
   bygg.navn = feltNavn.value;
-  bygg.byggeår = lesTallfelt(feltByggeaar) || Number(aarSlider.value);
+  bygg.byggeår = lesTallfelt(feltByggeaar) || tidslinjeAar();
+  settManed(bygg, 'byggemåned', feltByggemaned);
   bygg.høyde = parseFloat(feltHoyde.value) || 10;
   const riveaar = lesTallfelt(feltRiveaar);
   if (riveaar) {
     bygg.riveår = riveaar;
+    settManed(bygg, 'rivemåned', feltRivemaned);
   } else {
     delete bygg.riveår; // tomt felt = skal ikke rives
+    delete bygg.rivemåned;
   }
   lagreEndringer();
 }
 
 [feltNavn, feltByggeaar, feltHoyde, feltRiveaar].forEach(function (felt) {
   felt.addEventListener('input', skjemaEndret);
+});
+[feltByggemaned, feltRivemaned].forEach(function (felt) {
+  felt.addEventListener('change', skjemaEndret);
 });
 
 // Riving av et eksisterende bygg fra OpenStreetMap.
@@ -270,6 +303,7 @@ function rivingEndret() {
       CAMPUS_DATA.rivinger.push(rivning);
     }
     rivning.riveår = aar;
+    settManed(rivning, 'rivemåned', feltRivingManed);
     if (feltMerknad.value.trim()) {
       rivning.merknad = feltMerknad.value.trim();
     } else {
@@ -280,6 +314,7 @@ function rivingEndret() {
 }
 
 feltRivingAar.addEventListener('input', rivingEndret);
+feltRivingManed.addEventListener('change', rivingEndret);
 feltMerknad.addEventListener('input', rivingEndret);
 
 slettHjorneKnapp.addEventListener('click', function () {
@@ -315,7 +350,9 @@ function avsluttTegning(lagre) {
   if (lagre && tegnepunkter.length >= 3) {
     CAMPUS_DATA.nyeBygninger.push({
       navn: 'Nytt bygg',
-      byggeår: Number(aarSlider.value),
+      // Ferdig den måneden tidslinjen står på
+      byggeår: tidslinjeAar(),
+      byggemåned: tidslinjeManed(),
       høyde: 15,
       omriss: tegnepunkter
     });
@@ -520,11 +557,17 @@ function lagDatafil() {
   const bygg = CAMPUS_DATA.nyeBygninger.map(function (b) {
     const linjer = [
       '      navn: ' + tekstverdi(b.navn || 'Nytt bygg') + ',',
-      '      byggeår: ' + (b.byggeår || new Date().getFullYear()) + ',',
-      '      høyde: ' + (b.høyde || 10) + ','
+      '      byggeår: ' + (b.byggeår || new Date().getFullYear()) + ','
     ];
+    if (b.byggemåned) {
+      linjer.push('      byggemåned: ' + b.byggemåned + ',');
+    }
+    linjer.push('      høyde: ' + (b.høyde || 10) + ',');
     if (b.riveår) {
       linjer.push('      riveår: ' + b.riveår + ',');
+      if (b.rivemåned) {
+        linjer.push('      rivemåned: ' + b.rivemåned + ',');
+      }
     }
     linjer.push('      omriss: [');
     linjer.push(b.omriss.map(function (p) { return '        ' + koordinat(p); }).join(',\n'));
@@ -534,6 +577,9 @@ function lagDatafil() {
 
   const rivinger = CAMPUS_DATA.rivinger.map(function (r) {
     let linje = '    { osmId: ' + tekstverdi(r.osmId) + ', riveår: ' + r.riveår;
+    if (r.rivemåned) {
+      linje += ', rivemåned: ' + r.rivemåned;
+    }
     if (r.merknad) {
       linje += ', merknad: ' + tekstverdi(r.merknad);
     }
@@ -556,8 +602,9 @@ const DATAFIL_TOPP = `// campus-data.js: DIN datafil for campus-kartet.
 //   1. nyeBygninger – bygninger som ikke finnes i OpenStreetMap ennå
 //   2. rivinger     – eksisterende bygninger som skal rives
 //
-// Tidslinjen i kartet bruker årstallene her: en ny bygning dukker opp
-// i byggeåret, og en bygning som rives forsvinner i riveåret.
+// Tidslinjen i kartet går måned for måned fra 2020: en ny bygning dukker
+// opp i byggemåneden, og en bygning som rives forsvinner i rivemåneden.
+// Uten måned regnes januar.
 //
 // Regler hvis du skriver i fila selv (ellers virker ikke kartet):
 //   - Tekst skal stå i anførselstegn: 'Slik'
@@ -575,18 +622,21 @@ const CAMPUS_DATA = {
   // 1. NYE BYGNINGER
   // Hver bygning har:
   //   navn     – navnet som vises når du klikker på bygningen
-  //   byggeår  – året bygningen står ferdig (vises fra og med dette året)
-  //   høyde    – høyden i meter over bakken (ca. 3,5 m per etasje)
-  //   riveår   – (valgfritt) året bygningen rives
-  //   omriss   – hjørnene i bygningens grunnflate, i rekkefølge rundt bygget
+  //   byggeår    – året bygningen står ferdig
+  //   byggemåned – (valgfritt) måneden den står ferdig, 1–12 (uten: januar)
+  //   høyde      – høyden i meter over bakken (ca. 3,5 m per etasje)
+  //   riveår     – (valgfritt) året bygningen rives
+  //   rivemåned  – (valgfritt) måneden den rives, 1–12 (uten: januar)
+  //   omriss     – hjørnene i bygningens grunnflate, i rekkefølge rundt bygget
 `;
 
 const DATAFIL_RIVINGER = `  // 2. RIVINGER
   // Bygninger fra OpenStreetMap som skal rives. Hver rivning har:
   //   osmId   – bygningens ID i OpenStreetMap, f.eks. 'way/123456789'
   //             (klikk på bygningen i kartet, så står ID-en i boblen)
-  //   riveår  – året bygningen er revet (vises ikke lenger fra dette året)
-  //   merknad – (valgfritt) en kort forklaring, vises i boblen
+  //   riveår    – året bygningen er revet
+  //   rivemåned – (valgfritt) måneden den er revet, 1–12 (uten: januar)
+  //   merknad   – (valgfritt) en kort forklaring, vises i boblen
 `;
 
 kopierKnapp.addEventListener('click', async function () {

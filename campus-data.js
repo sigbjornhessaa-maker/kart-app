@@ -7,8 +7,9 @@
 //   1. nyeBygninger – bygninger som ikke finnes i OpenStreetMap ennå
 //   2. rivinger     – eksisterende bygninger som skal rives
 //
-// Tidslinjen i kartet bruker årstallene her: en ny bygning dukker opp
-// i byggeåret, og en bygning som rives forsvinner i riveåret.
+// Tidslinjen i kartet går måned for måned fra 2020: en ny bygning dukker
+// opp i byggemåneden, og en bygning som rives forsvinner i rivemåneden.
+// Uten måned regnes januar.
 //
 // Regler hvis du skriver i fila selv (ellers virker ikke kartet):
 //   - Tekst skal stå i anførselstegn: 'Slik'
@@ -26,10 +27,12 @@ const CAMPUS_DATA = {
   // 1. NYE BYGNINGER
   // Hver bygning har:
   //   navn     – navnet som vises når du klikker på bygningen
-  //   byggeår  – året bygningen står ferdig (vises fra og med dette året)
-  //   høyde    – høyden i meter over bakken (ca. 3,5 m per etasje)
-  //   riveår   – (valgfritt) året bygningen rives
-  //   omriss   – hjørnene i bygningens grunnflate, i rekkefølge rundt bygget
+  //   byggeår    – året bygningen står ferdig
+  //   byggemåned – (valgfritt) måneden den står ferdig, 1–12 (uten: januar)
+  //   høyde      – høyden i meter over bakken (ca. 3,5 m per etasje)
+  //   riveår     – (valgfritt) året bygningen rives
+  //   rivemåned  – (valgfritt) måneden den rives, 1–12 (uten: januar)
+  //   omriss     – hjørnene i bygningens grunnflate, i rekkefølge rundt bygget
   nyeBygninger: [
     {
       navn: 'Eksempelbygg (endre eller slett meg)',
@@ -63,8 +66,9 @@ const CAMPUS_DATA = {
   // Bygninger fra OpenStreetMap som skal rives. Hver rivning har:
   //   osmId   – bygningens ID i OpenStreetMap, f.eks. 'way/123456789'
   //             (klikk på bygningen i kartet, så står ID-en i boblen)
-  //   riveår  – året bygningen er revet (vises ikke lenger fra dette året)
-  //   merknad – (valgfritt) en kort forklaring, vises i boblen
+  //   riveår    – året bygningen er revet
+  //   rivemåned – (valgfritt) måneden den er revet, 1–12 (uten: januar)
+  //   merknad   – (valgfritt) en kort forklaring, vises i boblen
   rivinger: [
     { osmId: 'way/30285316', riveår: 2027 },
     { osmId: 'way/38138616', riveår: 2028 },

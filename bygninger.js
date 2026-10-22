@@ -43,10 +43,29 @@ function lesTall(tekst) {
   return isNaN(tall) ? null : tall;
 }
 
-// Finner et årstall (fire siffer) i tekst som "1910", "1910-05" eller "ca. 1965".
-function lesAar(tekst) {
-  const treff = tekst ? String(tekst).match(/\d{4}/) : null;
-  return treff ? Number(treff[0]) : null;
+// ---------- Måneder ----------
+// Tidslinjen går måned for måned. Internt gjør vi hver måned om til ett tall
+// ("månedsnummer"): år × 12 + (måned − 1). Da er januar 2020 = 24240, februar
+// 2020 = 24241 osv., og vi kan sammenligne tidspunkter som vanlige tall.
+const TIDSLINJE_START = 2020; // første år på tidslinjen
+
+function manedsnummer(aar, maned) {
+  return aar * 12 + ((maned || 1) - 1); // uten måned regnes januar
+}
+
+// 24240 -> "januar 2020"
+function manedTekst(nummer) {
+  const dato = new Date(Math.floor(nummer / 12), nummer % 12, 1);
+  return dato.toLocaleDateString('nb-NO', { month: 'long', year: 'numeric' });
+}
+
+// Leser år og måned fra tekst som "2026-03-15", "2026-03" eller "2026".
+function lesDato(tekst) {
+  const treff = tekst ? String(tekst).match(/(\d{4})(?:-(\d{2}))?/) : null;
+  if (!treff) {
+    return null;
+  }
+  return { aar: Number(treff[1]), maned: treff[2] ? Number(treff[2]) : null };
 }
 
 // Regner ut høyden på en bygning ut fra OSM-merkelappene (tags).
@@ -131,9 +150,13 @@ function osmTilGeoJson(element) {
     kilde: 'osm'
   };
   // Byggeår legges bare til hvis vi vet det (tidslinjen trenger å vite forskjellen).
-  const byggeaar = lesAar(tags.start_date || tags.construction_date);
-  if (byggeaar !== null) {
-    egenskaper.byggeaar = byggeaar;
+  const bygget = lesDato(tags.start_date || tags.construction_date);
+  if (bygget) {
+    egenskaper.byggeaar = bygget.aar;
+    egenskaper.byggetid = manedsnummer(bygget.aar, bygget.maned);
+    if (bygget.maned) {
+      egenskaper.byggemaned = bygget.maned;
+    }
   }
 
   return { type: 'Feature', geometry: geometri, properties: egenskaper };
@@ -155,10 +178,18 @@ function nyeBygningerFraDatafil() {
       hoyde: bygg.høyde || STANDARD_HOYDE,
       bunn: 0,
       kilde: 'ny',
-      byggeaar: bygg.byggeår
+      byggeaar: bygg.byggeår,
+      byggetid: manedsnummer(bygg.byggeår, bygg.byggemåned)
     };
+    if (bygg.byggemåned) {
+      egenskaper.byggemaned = bygg.byggemåned;
+    }
     if (bygg.riveår) {
       egenskaper.riveaar = bygg.riveår;
+      egenskaper.rivetid = manedsnummer(bygg.riveår, bygg.rivemåned);
+      if (bygg.rivemåned) {
+        egenskaper.rivemaned = bygg.rivemåned;
+      }
     }
     return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [ring] }, properties: egenskaper };
   });
@@ -170,6 +201,10 @@ function leggTilRivinger(bygninger) {
     const bygg = bygninger.find(function (b) { return b.properties.osmId === rivning.osmId; });
     if (bygg) {
       bygg.properties.riveaar = rivning.riveår;
+      bygg.properties.rivetid = manedsnummer(rivning.riveår, rivning.rivemåned);
+      if (rivning.rivemåned) {
+        bygg.properties.rivemaned = rivning.rivemåned;
+      }
       if (rivning.merknad) {
         bygg.properties.merknad = rivning.merknad;
       }
@@ -241,17 +276,18 @@ byggProvIgjen.addEventListener('click', function () {
 // Mens du redigerer (rediger.js), tegnes de nye byggene flatt i stedet for i 3D.
 let skjulNyeI3D = false;
 
-// Lager et filter som bare slipper gjennom bygninger som står i året "aar".
-// En bygning står hvis den er bygget (byggeår <= aar) og ikke revet (riveår > aar).
-function lagAarsfilter(aar) {
-  const ikkeRevet = ['>', ['coalesce', ['get', 'riveaar'], 99999], aar];
+// Lager et filter som bare slipper gjennom bygninger som står i måneden "tid"
+// (et månedsnummer). En bygning står hvis den er ferdig (byggetid <= tid) og
+// ikke revet (rivetid > tid).
+function lagTidsfilter(tid) {
+  const ikkeRevet = ['>', ['coalesce', ['get', 'rivetid'], 999999], tid];
   let bygget;
   if (skjulUkjenteBoks.checked) {
     // Bare bygninger vi vet byggeåret til
-    bygget = ['all', ['has', 'byggeaar'], ['<=', ['get', 'byggeaar'], aar]];
+    bygget = ['all', ['has', 'byggetid'], ['<=', ['get', 'byggetid'], tid]];
   } else {
     // Bygninger uten kjent byggeår vises alltid
-    bygget = ['<=', ['coalesce', ['get', 'byggeaar'], 0], aar];
+    bygget = ['<=', ['coalesce', ['get', 'byggetid'], 0], tid];
   }
   const filter = ['all', bygget, ikkeRevet];
   if (skjulNyeI3D) {
@@ -260,19 +296,21 @@ function lagAarsfilter(aar) {
   return filter;
 }
 
+// Viser campus slik den er i måneden slideren står på.
+// (Heter visAar av historiske grunner; rediger.js bruker også navnet.)
 function visAar() {
-  const aar = Number(aarSlider.value);
-  aarTekst.textContent = aar;
+  const tid = Number(aarSlider.value);
+  aarTekst.textContent = manedTekst(tid);
   // Laget finnes først når kartoppsettet er klart (se nederst i filen).
   if (kart.getLayer('bygninger-3d')) {
-    kart.setFilter('bygninger-3d', lagAarsfilter(aar));
+    kart.setFilter('bygninger-3d', lagTidsfilter(tid));
   }
 }
 
 aarSlider.addEventListener('input', visAar);
 skjulUkjenteBoks.addEventListener('change', visAar);
 
-// Avspilling: flytt slideren ett år fram hvert 0,4 sekund.
+// Avspilling: flytt slideren én måned fram hvert 0,15 sekund (ett år ≈ 2 sekunder).
 let avspilling = null;
 
 function stoppAvspilling() {
@@ -298,7 +336,7 @@ spillKnapp.addEventListener('click', function () {
     }
     aarSlider.value = Number(aarSlider.value) + 1;
     visAar();
-  }, 400);
+  }, 150);
 });
 
 // Slå 3D-bygningene av og på fra lagmenyen.
@@ -325,9 +363,9 @@ function visBygningsinfo(hendelse) {
   const p = treff[0].properties;
   let html = '<div class="planinfo"><h3>' + trygg(p.navn || 'Bygning uten navn') + '</h3><table>' +
     '<tr><th>Høyde</th><td>' + Math.round(p.hoyde) + ' m</td></tr>' +
-    '<tr><th>Byggeår</th><td>' + (p.byggeaar || 'Ukjent') + '</td></tr>';
+    '<tr><th>Ferdig</th><td>' + (p.byggeaar ? (p.byggemaned ? manedTekst(p.byggetid) : p.byggeaar) : 'Ukjent') + '</td></tr>';
   if (p.riveaar) {
-    html += '<tr><th>Rives</th><td>' + p.riveaar + '</td></tr>';
+    html += '<tr><th>Rives</th><td>' + (p.rivemaned ? manedTekst(p.rivetid) : p.riveaar) + '</td></tr>';
   }
   if (p.merknad) {
     html += '<tr><th>Merknad</th><td>' + trygg(p.merknad) + '</td></tr>';
@@ -394,13 +432,19 @@ narKartetErKlart(function () {
     }
   }, 'maling-linje');
 
-  // Slideren skal rekke fra det tidligste til det seneste året vi kjenner, med litt margin.
+  // Slideren går måned for måned fra januar 2020 til desember i det seneste
+  // året vi kjenner (minst 2040), og starter på denne måneden.
   const aarIDatafil = [];
   (CAMPUS_DATA.nyeBygninger || []).forEach(function (b) { aarIDatafil.push(b.byggeår, b.riveår || 0); });
   (CAMPUS_DATA.rivinger || []).forEach(function (r) { aarIDatafil.push(r.riveår); });
   const gyldigeAar = aarIDatafil.filter(Number.isFinite); // hopp over manglende årstall
-  aarSlider.max = Math.max(2040, Math.max.apply(null, gyldigeAar.concat([0])) + 5);
-  aarSlider.value = new Date().getFullYear();
+  const sisteAar = Math.max(2040, Math.max.apply(null, gyldigeAar.concat([0])) + 2);
+  aarSlider.min = manedsnummer(TIDSLINJE_START, 1);
+  aarSlider.max = manedsnummer(sisteAar, 12);
+  const na = new Date();
+  aarSlider.value = manedsnummer(na.getFullYear(), na.getMonth() + 1);
+  document.getElementById('tid-start').textContent = TIDSLINJE_START;
+  document.getElementById('tid-slutt').textContent = sisteAar;
 
   visAar();
   oppdaterBygningsdata(); // vis bygningene vi har (datafilen, og OSM hvis de er hentet)
