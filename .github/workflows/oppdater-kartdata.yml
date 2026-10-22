@@ -1,0 +1,63 @@
+# GitHub Action: henter kartdata fra OpenStreetMap og lagrer dem i mappa data/.
+#
+# Da trenger ikke nettsiden spørre OpenStreetMap (Overpass) hver gang noen
+# åpner den, og den blir mye raskere og mer stabil.
+#
+# Den kjører når:
+#   - du endrer data/OPPDATER-KARTDATA.txt (f.eks. skriver dagens dato der)
+#   - hentekoden eller denne fila endres
+#   - du trykker «Run workflow» under fanen Actions på GitHub
+#     (den knappen vises bare når fila også ligger i hovedgrenen)
+
+name: Oppdater kartdata
+
+on:
+  push:
+    branches: [claude/magical-hypatia-6b6ber]
+    paths:
+      - 'data/OPPDATER-KARTDATA.txt'
+      - 'kartdata-henting.js'
+      - 'verktoy/hent-kartdata.js'
+      - '.github/workflows/oppdater-kartdata.yml'
+  workflow_dispatch:
+
+# Lov til å lagre (committe) de nye filene
+permissions:
+  contents: write
+
+# Bare én kjøring om gangen
+concurrency:
+  group: oppdater-kartdata
+  cancel-in-progress: false
+
+jobs:
+  hent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Hent koden
+        uses: actions/checkout@v4
+        with:
+          ref: claude/magical-hypatia-6b6ber
+
+      - name: Installer Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Hent kartdata fra OpenStreetMap
+        run: node verktoy/hent-kartdata.js
+
+      - name: Lagre de nye filene
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "Ingen endringer i kartdataene."
+          else
+            git commit -m "Oppdater kartdata fra OpenStreetMap"
+            # Hvis noen har lagret noe i mellomtiden: legg våre endringer oppå
+            git pull --rebase origin claude/magical-hypatia-6b6ber
+            git push origin HEAD:claude/magical-hypatia-6b6ber
+          fi

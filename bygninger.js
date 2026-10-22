@@ -10,12 +10,7 @@
 
 // Campusområdet: Gløshaugen, Hesthagen/Elgeseter, Studentersamfundet og
 // Lerkendal, med litt margin. Bare bygninger innenfor dette hentes i 3D.
-const CAMPUS_OMRADE = {
-  sor: 63.4065,
-  vest: 10.3880,
-  nord: 63.4265,
-  ost: 10.4165
-};
+const CAMPUS_OMRADE = BYGG_OMRADE; // definert i kartdata-henting.js
 
 // Hentingen fra OpenStreetMap (Overpass) ligger i kartdata-henting.js:
 // den prøver flere ganger og lagrer en kopi i nettleseren.
@@ -287,26 +282,25 @@ function oppdaterBygningsdata() {
 
 const byggProvIgjen = document.getElementById('bygg-prov-igjen');
 
-// tvingNy = true: hent nytt fra OpenStreetMap selv om vi har en lagret kopi.
+// Bygningene kommer fra data/bygninger.js (lagres automatisk av GitHub Action
+// «Oppdater kartdata»). Mangler fila, eller trykker du «Hent bygninger på nytt»,
+// hentes de direkte fra OpenStreetMap (med lagret kopi i nettleseren).
+//   tvingNy = true: hent nytt fra OpenStreetMap uansett.
 async function hentOsmBygninger(tvingNy) {
-  const o = CAMPUS_OMRADE;
-  const boks = o.sor + ',' + o.vest + ',' + o.nord + ',' + o.ost;
-  // Spørringen ber om alle bygninger (building=*) innenfor boksen,
-  // med omriss (out geom).
-  const sporring = '[out:json][timeout:60];(' +
-    'way["building"](' + boks + ');' +
-    'relation["building"]["type"="multipolygon"](' + boks + ');' +
-    ');out geom;';
-
   byggProvIgjen.hidden = true;
+  if (!tvingNy && typeof BYGNINGER_OSM !== 'undefined') {
+    osmBygninger = BYGNINGER_OSM.elements.map(osmTilGeoJson).filter(function (b) { return b !== null; });
+    byggStatus.textContent = osmBygninger.length + ' bygninger fra OpenStreetMap';
+    oppdaterBygningsdata();
+    return;
+  }
+
   byggStatus.textContent = 'Henter bygninger fra OpenStreetMap …';
   function status(tekst) {
     byggStatus.textContent = tekst;
   }
   try {
-    const svar = await hentMedLager('bygninger:' + sporring, function () {
-      return sporOverpass(sporring, status);
-    }, { tvingNy: tvingNy });
+    const svar = await hentBygningerMedLager(status, { tvingNy: tvingNy });
     osmBygninger = svar.data.elements.map(osmTilGeoJson).filter(function (b) { return b !== null; });
     byggStatus.textContent = osmBygninger.length + ' bygninger fra OpenStreetMap' +
       (svar.fraLager ? ' (lagret ' + svar.dato.toLocaleDateString('nb-NO') + ')' : '');

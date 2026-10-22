@@ -12,10 +12,13 @@
 
 // Overpass-tjenestene vi prøver, i rekkefølge. Den første er hovedtjenesten.
 // Private.coffee (tidligere kumi.systems) er en gratis reserve.
-const OVERPASS_SERVERE = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter'
-];
+// (Når hentescriptet kjøres med Node, kan OVERPASS_URL peke til en annen tjeneste, f.eks. for testing.)
+const OVERPASS_SERVERE = (typeof process !== 'undefined' && process.env && process.env.OVERPASS_URL)
+  ? [process.env.OVERPASS_URL]
+  : [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter'
+  ];
 
 // Hvor lenge en lagret kopi i nettleseren regnes som fersk (dager).
 const LAGRET_KOPI_DAGER = 14;
@@ -27,6 +30,15 @@ const ANALYSEOMRADE = {
   vest: 10.3600,
   nord: 63.4400,
   ost: 10.4550
+};
+
+// Området for 3D-bygningene: Gløshaugen, Hesthagen/Elgeseter,
+// Studentersamfundet og Lerkendal, med litt margin.
+const BYGG_OMRADE = {
+  sor: 63.4065,
+  vest: 10.3880,
+  nord: 63.4265,
+  ost: 10.4165
 };
 
 // Området for bussruter: hele Trondheim.
@@ -49,6 +61,17 @@ function boksTekst(o) {
   return o.sor + ',' + o.vest + ',' + o.nord + ',' + o.ost;
 }
 
+// I nettleseren holder det med Content-Type. Fra Node (GitHub Action) sier vi
+// også hvem vi er, slik Overpass ber om. (I nettleseren kan ikke User-Agent
+// settes uten at Overpass må godkjenne en ekstra forespørsel først.)
+function overpassHoder() {
+  const hoder = { 'Content-Type': 'application/x-www-form-urlencoded' };
+  if (typeof window === 'undefined') {
+    hoder['User-Agent'] = 'kart-app (https://github.com/sigbjornhessaa-maker/kart-app)';
+  }
+  return hoder;
+}
+
 function vent(ms) {
   return new Promise(function (ferdig) { setTimeout(ferdig, ms); });
 }
@@ -68,7 +91,7 @@ async function sporOverpass(sporring, status) {
       const svar = await fetch(url, {
         method: 'POST',
         body: 'data=' + encodeURIComponent(sporring),
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: overpassHoder(),
         signal: avbryter.signal
       });
       if (!svar.ok) {
@@ -240,6 +263,39 @@ function hentGangnettMedLager(status, valg) {
   return hentMedLager(lagGangnettSporring(), function () { return hentGangnett(status); }, valg);
 }
 
+// ---------- 1b. Bygningene til 3D-kartet ----------
+
+function lagByggSporring() {
+  const boks = boksTekst(BYGG_OMRADE);
+  // Alle bygninger (building=*) innenfor området, med omriss (out geom).
+  return '[out:json][timeout:60];(' +
+    'way["building"](' + boks + ');' +
+    'relation["building"]["type"="multipolygon"](' + boks + ');' +
+    ');out geom;';
+}
+
+// Svaret fra Overpass beholdes som det er (bygninger.js gjør det om til 3D),
+// men uten unødvendige felt, så fila blir mindre.
+async function hentBygninger(status) {
+  const data = await sporOverpass(lagByggSporring(), status);
+  if (!data.elements || data.elements.length === 0) {
+    throw new Error('Svaret fra OpenStreetMap inneholdt ingen bygninger');
+  }
+  return { elements: data.elements };
+}
+
+function hentBygningerMedLager(status, valg) {
+  return hentMedLager('bygninger:' + lagByggSporring(), function () { return hentBygninger(status); }, valg);
+}
+
+function lagBygningerFil(bygninger, hentetDato) {
+  return '// data/bygninger.js: bygningene på campus, fra OpenStreetMap (brukes av 3D-kartet).\n' +
+    '// © OpenStreetMap-bidragsytere, lisens ODbL (https://www.openstreetmap.org/copyright)\n' +
+    '// Hentet ' + hentetDato + ' av GitHub Action «Oppdater kartdata». Ikke rediger fila selv:\n' +
+    '// rettinger legger du inn i campus-data.js.\n' +
+    'const BYGNINGER_OSM = ' + JSON.stringify(bygninger) + ';\n';
+}
+
 // ---------- 2. Bussrutene ----------
 
 function lagBussSporring() {
@@ -377,5 +433,5 @@ function lagBussruterFil(bussruter, hentetDato) {
 
 // Gjør funksjonene tilgjengelige for Node (verktoy/hent-kartdata.js).
 if (typeof module !== 'undefined') {
-  module.exports = { hentGangnett, hentBussruter, lagGangnettFil, lagBussruterFil };
+  module.exports = { hentGangnett, hentBussruter, hentBygninger, lagGangnettFil, lagBussruterFil, lagBygningerFil };
 }
