@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Lille Lumi</title>
+  <meta name="description" content="Et lite, søtt retro-romspill med Lumi og raketten hans.">
+  <meta name="theme-color" content="#17132f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Lumi">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/icon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="game"></canvas>
+
+    <!-- HUD under spilling -->
+    <div id="hud" class="hidden">
+      <div class="hud-left">
+        <div id="hudDist">0 m</div>
+        <div id="hudZone" class="small">SONE 1</div>
+      </div>
+      <div class="hud-right"><span class="star">✦</span> <span id="hudDust">0</span></div>
+    </div>
+    <div id="zoneBanner"><div id="zoneNum">SONE 1</div><div id="zoneName">Melkeveien</div></div>
+    <div id="hint">Hold fingeren nede for å stige<br>– slipp for å synke</div>
+
+    <!-- Startskjerm -->
+    <section id="screenStart" class="screen spread">
+      <div class="top">
+        <canvas id="title" aria-label="Lille Lumi"></canvas>
+        <p class="stats">REKORD <b id="menuBest">0 m</b><br><span class="star">✦</span> <b id="menuDust">0</b> stjernestøv</p>
+      </div>
+      <div class="bottom">
+        <button id="playBtn" class="btn big">SPILL</button>
+        <button id="shopBtn" class="btn pink">BUTIKK</button>
+        <p class="small muted">Hold fingeren på skjermen for å stige.<br>Samle ✦ og unngå asteroidene!</p>
+      </div>
+    </section>
+
+    <!-- Game over -->
+    <section id="screenOver" class="screen">
+      <div class="panel">
+        <h2 id="overTitle">BONK!</h2>
+        <p id="overRecord" class="record hidden">★ NY REKORD! ★</p>
+        <dl>
+          <dt>Distanse</dt><dd id="overDist">0 m</dd>
+          <dt>Rekord</dt><dd id="overBest">0 m</dd>
+          <dt>Stjernestøv</dt><dd><span class="star">✦</span> <span id="overDust">+0</span></dd>
+          <dt>Totalt</dt><dd><span class="star">✦</span> <span id="overTotal">0</span></dd>
+        </dl>
+        <button id="retryBtn" class="btn big">PRØV IGJEN</button>
+        <div class="row">
+          <button id="overShopBtn" class="btn pink small-btn">BUTIKK</button>
+          <button id="menuBtn" class="btn blue small-btn">MENY</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Butikk -->
+    <section id="screenShop" class="screen shop">
+      <div class="shop-head">
+        <button id="shopBackBtn" class="btn blue tiny">◀</button>
+        <h2>BUTIKK</h2>
+        <div class="wallet"><span class="star">✦</span> <span id="shopDust">0</span></div>
+      </div>
+      <canvas id="shopPreview"></canvas>
+      <p id="shopInfo" class="small muted">Trykk på noe for å se hvordan det ser ut.</p>
+      <button id="buyBtn" class="btn hidden">KJØP</button>
+      <div class="tabs">
+        <button class="tab active" data-tab="colors">RAKETTER</button>
+        <button class="tab" data-tab="hats">HATTER</button>
+      </div>
+      <div id="shopGrid" class="grid scroll"></div>
+    </section>
+
+    <!-- Pause -->
+    <section id="screenPause" class="screen">
+      <div class="panel"><h2>PAUSE</h2><p>Trykk for å fortsette</p></div>
+    </section>
+
+    <button id="soundBtn" class="btn tiny blue">♪ PÅ</button>
+  </div>
+
+  <script src="js/sprites.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/game.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+    }
+  </script>
+</body>
+</html>
