@@ -33,7 +33,7 @@ concurrency:
 jobs:
   hent:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - name: Hent koden
         uses: actions/checkout@v4

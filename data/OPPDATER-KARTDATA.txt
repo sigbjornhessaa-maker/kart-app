@@ -3,6 +3,6 @@ Endre denne fila for å hente nye kartdata fra OpenStreetMap.
 Skriv f.eks. dagens dato på linja under og trykk «Commit changes».
 Da henter GitHub Action «Oppdater kartdata» bygninger, gangnett og bussruter
 på nytt og lagrer dem i denne mappa (tar et par minutter).
-Du kan følge med under fanen «Actions» på GitHub.
+Du kan følge med under fanen «Actions» på GitHub, og se resultatet i hentelogg.txt.
 
-Sist bedt om: 2026-10-24
+Sist bedt om: 2026-10-22 (andre forsøk)

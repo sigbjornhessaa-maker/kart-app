@@ -80,7 +80,9 @@ function vent(ms) {
 // prøver flere ganger, med økende pause, og bytter tjeneste ved feil.
 //   status – (valgfri) funksjon som får en tekst om hva som skjer
 async function sporOverpass(sporring, status) {
-  const forsok = 4;
+  // Fra Node (GitHub Action) haster det ikke: flere forsøk og lengre pauser.
+  const fraNode = typeof window === 'undefined';
+  const forsok = fraNode ? 6 : 4;
   let sisteFeil = null;
   for (let i = 0; i < forsok; i++) {
     const url = OVERPASS_SERVERE[i % OVERPASS_SERVERE.length];
@@ -109,7 +111,7 @@ async function sporOverpass(sporring, status) {
       sisteFeil = feil.name === 'AbortError' ? new Error('Overpass brukte for lang tid') : feil;
       console.warn('Overpass-forsøk ' + (i + 1) + ' feilet (' + url + '):', sisteFeil.message);
       if (i < forsok - 1) {
-        const sekunder = 3 * (i + 1); // 3, 6, 9 sekunder
+        const sekunder = (fraNode ? 20 : 3) * (i + 1); // i nettleseren 3, 6, 9 s; fra Node 20, 40, 60 … s
         if (status) {
           status('OpenStreetMap svarte ikke (' + sisteFeil.message + '). Prøver igjen om ' + sekunder + ' s …');
         }

@@ -38,21 +38,36 @@ const filer = [
   }
 ];
 
+// I GitHub Actions blir linjer som starter med ::notice:: og ::warning::
+// vist som merknader på kjøringen (lette å finne under fanen Actions).
+function melding(type, tekst) {
+  if (process.env.GITHUB_ACTIONS) {
+    console.log('::' + type + '::' + tekst.replace(/\n/g, ' '));
+  } else {
+    console.log(tekst);
+  }
+}
+
 async function main() {
   fs.mkdirSync(mappe, { recursive: true });
   let feilet = 0;
+  const logg = ['Kartdata hentet ' + new Date().toISOString().replace('T', ' ').slice(0, 16) + ' (UTC)', ''];
   for (const fil of filer) {
     try {
       const data = await fil.hent(function (tekst) { console.log('  ' + tekst); });
       fs.writeFileSync(path.join(mappe, fil.navn), fil.lagFil(data, dato));
-      console.log('Lagret ' + fil.beskriv(data) + ' i data/' + fil.navn);
+      melding('notice', 'Lagret ' + fil.beskriv(data) + ' i data/' + fil.navn);
+      logg.push('OK      data/' + fil.navn + ': ' + fil.beskriv(data));
     } catch (feil) {
       feilet++;
-      console.error('Klarte ikke hente data/' + fil.navn + ' (beholder den gamle): ' + feil.message);
+      melding('warning', 'Klarte ikke hente data/' + fil.navn + ' (beholder den gamle): ' + feil.message);
+      logg.push('FEILET  data/' + fil.navn + ': ' + feil.message + ' (den gamle fila er beholdt)');
     }
-    // Litt pause mellom spørringene, så vi ikke belaster Overpass unødig.
-    await new Promise(function (ferdig) { setTimeout(ferdig, 5000); });
+    // Pause mellom spørringene, så vi ikke belaster Overpass unødig.
+    await new Promise(function (ferdig) { setTimeout(ferdig, 30000); });
   }
+  logg.push('', 'Feilet noe? Prøv igjen senere ved å endre data/OPPDATER-KARTDATA.txt.');
+  fs.writeFileSync(path.join(mappe, 'hentelogg.txt'), logg.join('\n') + '\n');
   if (feilet === filer.length) {
     process.exit(1); // alt feilet: marker kjøringen som mislykket
   }
