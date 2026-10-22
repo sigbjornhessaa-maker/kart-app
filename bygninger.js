@@ -17,8 +17,8 @@ const CAMPUS_OMRADE = {
   ost: 10.4165
 };
 
-// Overpass er en gratis tjeneste for å hente data fra OpenStreetMap.
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+// Hentingen fra OpenStreetMap (Overpass) ligger i kartdata-henting.js:
+// den prøver flere ganger og lagrer en kopi i nettleseren.
 
 // Standardhøyde når OpenStreetMap ikke vet hvor høy bygningen er,
 // og høyde per etasje når vi bare vet antall etasjer.
@@ -199,35 +199,42 @@ function oppdaterBygningsdata() {
 
 // ---------- Hente bygninger fra OpenStreetMap ----------
 
-async function hentOsmBygninger() {
+const byggProvIgjen = document.getElementById('bygg-prov-igjen');
+
+// tvingNy = true: hent nytt fra OpenStreetMap selv om vi har en lagret kopi.
+async function hentOsmBygninger(tvingNy) {
   const o = CAMPUS_OMRADE;
   const boks = o.sor + ',' + o.vest + ',' + o.nord + ',' + o.ost;
   // Spørringen ber om alle bygninger (building=*) innenfor boksen,
   // med omriss (out geom).
-  const sporring = '[out:json][timeout:25];(' +
+  const sporring = '[out:json][timeout:60];(' +
     'way["building"](' + boks + ');' +
     'relation["building"]["type"="multipolygon"](' + boks + ');' +
     ');out geom;';
 
+  byggProvIgjen.hidden = true;
   byggStatus.textContent = 'Henter bygninger fra OpenStreetMap …';
+  function status(tekst) {
+    byggStatus.textContent = tekst;
+  }
   try {
-    const svar = await fetch(OVERPASS_URL, {
-      method: 'POST',
-      body: 'data=' + encodeURIComponent(sporring),
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-    });
-    if (!svar.ok) {
-      throw new Error('Overpass svarte med feilkode ' + svar.status);
-    }
-    const data = await svar.json();
-    osmBygninger = data.elements.map(osmTilGeoJson).filter(function (b) { return b !== null; });
-    byggStatus.textContent = osmBygninger.length + ' bygninger fra OpenStreetMap';
+    const svar = await hentMedLager('bygninger:' + sporring, function () {
+      return sporOverpass(sporring, status);
+    }, { tvingNy: tvingNy });
+    osmBygninger = svar.data.elements.map(osmTilGeoJson).filter(function (b) { return b !== null; });
+    byggStatus.textContent = osmBygninger.length + ' bygninger fra OpenStreetMap' +
+      (svar.fraLager ? ' (lagret ' + svar.dato.toLocaleDateString('nb-NO') + ')' : '');
   } catch (feil) {
     console.error('Klarte ikke hente bygninger fra OpenStreetMap:', feil);
-    byggStatus.textContent = 'Klarte ikke hente bygninger fra OpenStreetMap. Last siden på nytt for å prøve igjen.';
+    byggStatus.textContent = 'Klarte ikke hente bygninger fra OpenStreetMap (' + feil.message + ').';
+    byggProvIgjen.hidden = false;
   }
   oppdaterBygningsdata();
 }
+
+byggProvIgjen.addEventListener('click', function () {
+  hentOsmBygninger(true);
+});
 
 // ---------- Tidslinjen ----------
 

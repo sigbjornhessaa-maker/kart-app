@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
   <!-- ?v=dato bak filnavnene tvinger nettleseren til å hente nye versjoner
        i stedet for gamle kopier. Endre datoen når du endrer en fil. -->
-  <link rel="stylesheet" href="style.css?v=2026-10-06">
+  <link rel="stylesheet" href="style.css?v=2026-10-22">
 </head>
 <body>
   <header>
@@ -146,6 +146,7 @@
 
       <h2>Kartdata</h2>
       <p id="nett-status" class="hjelp"></p>
+      <button id="prov-igjen" hidden>Prøv igjen</button>
       <button id="hent-nett-knapp">Hent gangnett på nytt</button>
       <p id="buss-status" class="hjelp"></p>
       <button id="hent-buss-knapp">Hent bussruter på nytt</button>
@@ -154,13 +155,20 @@
   </main>
 
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script>
+    // Reserve: hvis unpkg ikke svarte, last MapLibre fra jsDelivr i stedet.
+    if (!window.maplibregl) {
+      document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css">');
+      document.write('<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js"><\/script>');
+    }
+  </script>
   <!-- Kartdata fra OpenStreetMap (lagret som filer). Mangler de, henter siden dataene selv. -->
-  <script src="data/gangnett.js?v=2026-10-06"></script>
-  <script src="data/bussruter.js?v=2026-10-06"></script>
+  <script src="data/gangnett.js?v=2026-10-22"></script>
+  <script src="data/bussruter.js?v=2026-10-22"></script>
   <!-- Din datafil med startpunkter, mål, reisemåter og snarveier -->
-  <script src="gangtrafikk-data.js?v=2026-10-06"></script>
-  <script src="kartdata-henting.js?v=2026-10-06"></script>
-  <script src="gangtrafikk.js?v=2026-10-06"></script>
-  <script src="gangtrafikk-rediger.js?v=2026-10-06"></script>
+  <script src="gangtrafikk-data.js?v=2026-10-22"></script>
+  <script src="kartdata-henting.js?v=2026-10-22"></script>
+  <script src="gangtrafikk.js?v=2026-10-22"></script>
+  <script src="gangtrafikk-rediger.js?v=2026-10-22"></script>
 </body>
 </html>

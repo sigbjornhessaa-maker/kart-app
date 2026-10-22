@@ -2,13 +2,23 @@
 //
 //   1. Gang- og sykkelnettet i analyseområdet  -> data/gangnett.js
 //   2. Bussrutene i hele Trondheim              -> data/bussruter.js
+// og inneholder den felles, robuste hentingen fra Overpass (brukes også av
+// 3D-bygningene på forsiden).
 //
 // Brukes på to måter:
 //   - Av gangtrafikk.js: mangler en av filene, henter siden dataene selv, og
 //     knappene «Hent ... på nytt» lar deg laste ned filene.
 //   - Av verktoy/hent-kartdata.js (kjøres med Node) for å lage filene direkte.
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+// Overpass-tjenestene vi prøver, i rekkefølge. Den første er hovedtjenesten.
+// Private.coffee (tidligere kumi.systems) er en gratis reserve.
+const OVERPASS_SERVERE = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter'
+];
+
+// Hvor lenge en lagret kopi i nettleseren regnes som fersk (dager).
+const LAGRET_KOPI_DAGER = 14;
 
 // Analyseområdet for gangnettet: campus med god margin, så både Moholt,
 // Singsaker, Lerkendal, Øya og sentrum kommer med (ca. 7 × 5 km).
@@ -39,16 +49,121 @@ function boksTekst(o) {
   return o.sor + ',' + o.vest + ',' + o.nord + ',' + o.ost;
 }
 
-async function sporOverpass(sporring) {
-  const svar = await fetch(OVERPASS_URL, {
-    method: 'POST',
-    body: 'data=' + encodeURIComponent(sporring),
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-  });
-  if (!svar.ok) {
-    throw new Error('Overpass svarte med feilkode ' + svar.status);
+function vent(ms) {
+  return new Promise(function (ferdig) { setTimeout(ferdig, ms); });
+}
+
+// Sender en spørring til Overpass. Overpass er gratis og ofte travel, så vi
+// prøver flere ganger, med økende pause, og bytter tjeneste ved feil.
+//   status – (valgfri) funksjon som får en tekst om hva som skjer
+async function sporOverpass(sporring, status) {
+  const forsok = 4;
+  let sisteFeil = null;
+  for (let i = 0; i < forsok; i++) {
+    const url = OVERPASS_SERVERE[i % OVERPASS_SERVERE.length];
+    // Avbryt hvis det tar mer enn 3 minutter.
+    const avbryter = new AbortController();
+    const tidsfrist = setTimeout(function () { avbryter.abort(); }, 180000);
+    try {
+      const svar = await fetch(url, {
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(sporring),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        signal: avbryter.signal
+      });
+      if (!svar.ok) {
+        throw new Error('Overpass svarte med feilkode ' + svar.status +
+          (svar.status === 429 ? ' (for mange forespørsler)' : svar.status === 504 ? ' (for travel)' : ''));
+      }
+      const data = await svar.json();
+      // Hvis Overpass går tom for tid underveis, svarer den «OK» med et
+      // ufullstendig resultat og en merknad (remark). Det regner vi som feil.
+      if (data.remark && /error|timed out|out of memory/i.test(data.remark)) {
+        throw new Error('Ufullstendig svar fra Overpass: ' + data.remark);
+      }
+      return data;
+    } catch (feil) {
+      sisteFeil = feil.name === 'AbortError' ? new Error('Overpass brukte for lang tid') : feil;
+      console.warn('Overpass-forsøk ' + (i + 1) + ' feilet (' + url + '):', sisteFeil.message);
+      if (i < forsok - 1) {
+        const sekunder = 3 * (i + 1); // 3, 6, 9 sekunder
+        if (status) {
+          status('OpenStreetMap svarte ikke (' + sisteFeil.message + '). Prøver igjen om ' + sekunder + ' s …');
+        }
+        await vent(sekunder * 1000);
+      }
+    } finally {
+      clearTimeout(tidsfrist);
+    }
   }
-  return svar.json();
+  throw sisteFeil;
+}
+
+// ---------- Lagret kopi i nettleseren (IndexedDB) ----------
+// Når dataene er hentet én gang, lagres de i nettleseren. Neste gang siden
+// åpnes, brukes kopien, så vi slipper å vente på Overpass. Feiler hentingen,
+// bruker vi en eldre kopi hvis vi har en.
+
+function apneLager() {
+  return new Promise(function (ferdig, feilet) {
+    if (typeof indexedDB === 'undefined') {
+      feilet(new Error('Nettleseren har ikke IndexedDB'));
+      return;
+    }
+    const foresporsel = indexedDB.open('kart-app', 1);
+    foresporsel.onupgradeneeded = function () {
+      foresporsel.result.createObjectStore('kartdata');
+    };
+    foresporsel.onsuccess = function () { ferdig(foresporsel.result); };
+    foresporsel.onerror = function () { feilet(foresporsel.error); };
+  });
+}
+
+async function lesLager(nokkel) {
+  try {
+    const db = await apneLager();
+    return await new Promise(function (ferdig) {
+      const f = db.transaction('kartdata').objectStore('kartdata').get(nokkel);
+      f.onsuccess = function () { ferdig(f.result || null); };
+      f.onerror = function () { ferdig(null); };
+    });
+  } catch (feil) {
+    return null; // f.eks. privat modus: da går det fint uten lagring
+  }
+}
+
+async function skrivLager(nokkel, verdi) {
+  try {
+    const db = await apneLager();
+    db.transaction('kartdata', 'readwrite').objectStore('kartdata').put(verdi, nokkel);
+  } catch (feil) {
+    // Ikke plass eller ikke lov: da lagrer vi bare ikke.
+  }
+}
+
+// Henter data med lagret kopi.
+//   nokkel   – navnet på kopien (spørringen selv, så en ny spørring gir ny kopi)
+//   hent     – funksjon som henter dataene fra Overpass
+//   valg.tvingNy – true = hent nytt selv om vi har en fersk kopi
+// Svarer { data, dato, fraLager }.
+async function hentMedLager(nokkel, hent, valg) {
+  valg = valg || {};
+  const kopi = await lesLager(nokkel);
+  const alderDager = kopi ? (Date.now() - kopi.tid) / 86400000 : Infinity;
+  if (kopi && !valg.tvingNy && alderDager < LAGRET_KOPI_DAGER) {
+    return { data: kopi.data, dato: new Date(kopi.tid), fraLager: true };
+  }
+  try {
+    const data = await hent();
+    await skrivLager(nokkel, { tid: Date.now(), data: data });
+    return { data: data, dato: new Date(), fraLager: false };
+  } catch (feil) {
+    if (kopi) {
+      console.warn('Bruker lagret kopi fordi hentingen feilet:', feil.message);
+      return { data: kopi.data, dato: new Date(kopi.tid), fraLager: true, gammel: true };
+    }
+    throw feil;
+  }
 }
 
 // 6 desimaler er ca. 10 cm. Kryss mellom stier får nøyaktig samme koordinat,
@@ -115,8 +230,14 @@ function overpassTilGangnett(data) {
   return { type: 'FeatureCollection', bbox: [o.vest, o.sor, o.ost, o.nord], features: linjer };
 }
 
-async function hentGangnett() {
-  return overpassTilGangnett(await sporOverpass(lagGangnettSporring()));
+// Henter gangnettet direkte fra Overpass (uten lagret kopi).
+async function hentGangnett(status) {
+  return overpassTilGangnett(await sporOverpass(lagGangnettSporring(), status));
+}
+
+// Henter gangnettet, med lagret kopi i nettleseren.
+function hentGangnettMedLager(status, valg) {
+  return hentMedLager(lagGangnettSporring(), function () { return hentGangnett(status); }, valg);
 }
 
 // ---------- 2. Bussrutene ----------
@@ -228,8 +349,12 @@ function overpassTilBussruter(data) {
   return { linjer: linjer };
 }
 
-async function hentBussruter() {
-  return overpassTilBussruter(await sporOverpass(lagBussSporring()));
+async function hentBussruter(status) {
+  return overpassTilBussruter(await sporOverpass(lagBussSporring(), status));
+}
+
+function hentBussruterMedLager(status, valg) {
+  return hentMedLager(lagBussSporring(), function () { return hentBussruter(status); }, valg);
 }
 
 // ---------- Filene ----------

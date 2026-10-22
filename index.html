@@ -13,7 +13,7 @@
   <!-- Vårt eget stilark -->
   <!-- ?v=dato bak filnavnene tvinger nettleseren til å hente nye versjoner
        i stedet for gamle kopier. Endre datoen når du endrer en fil. -->
-  <link rel="stylesheet" href="style.css?v=2026-10-06">
+  <link rel="stylesheet" href="style.css?v=2026-10-22">
 </head>
 <body>
   <header>
@@ -51,6 +51,7 @@
         <span id="aar-tekst">2026</span>
         <label class="hjelp"><input type="checkbox" id="skjul-ukjente"> Skjul bygninger uten kjent byggeår</label>
         <span id="bygg-status" class="hjelp"></span>
+        <button id="bygg-prov-igjen" hidden>Prøv igjen</button>
       </div>
     </div>
 
@@ -132,13 +133,22 @@
 
   <!-- MapLibre GL sitt JavaScript-bibliotek -->
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <script>
+    // Reserve: hvis unpkg ikke svarte, last MapLibre fra jsDelivr i stedet.
+    if (!window.maplibregl) {
+      document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css">');
+      document.write('<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js"><\/script>');
+    }
+  </script>
   <!-- Oversettelse av arealformål-koder til tekst (brukes av script.js) -->
-  <script src="arealformal.js?v=2026-10-06"></script>
+  <script src="arealformal.js?v=2026-10-22"></script>
   <!-- Datafilen din med nye bygninger og rivinger (brukes av bygninger.js) -->
-  <script src="campus-data.js?v=2026-10-06"></script>
+  <script src="campus-data.js?v=2026-10-22"></script>
   <!-- Vår egen kode. Må komme ETTER MapLibre, fordi den bruker MapLibre -->
-  <script src="script.js?v=2026-10-06"></script>
-  <script src="bygninger.js?v=2026-10-06"></script>
-  <script src="rediger.js?v=2026-10-06"></script>
+  <script src="script.js?v=2026-10-22"></script>
+  <!-- Felles, robust henting fra OpenStreetMap (brukes av bygninger.js) -->
+  <script src="kartdata-henting.js?v=2026-10-22"></script>
+  <script src="bygninger.js?v=2026-10-22"></script>
+  <script src="rediger.js?v=2026-10-22"></script>
 </body>
 </html>

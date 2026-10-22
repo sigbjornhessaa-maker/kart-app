@@ -33,6 +33,12 @@ Mitt første kart-app prosjekt: et kart over Trondheim laget med MapLibre GL.
 ## Publisering
 Appen publiseres med GitHub Pages: Settings → Pages → «Deploy from a branch».
 
+## Data fra OpenStreetMap
+Bygninger, gangnett og bussruter hentes fra Overpass (en gratis tjeneste for OpenStreetMap-data).
+Siden prøver flere ganger og bruker en reservetjeneste hvis Overpass er travel, og lagrer en kopi
+i nettleseren i 14 dager. Raskest og mest stabilt for alle er å laste opp `data/gangnett.js` og
+`data/bussruter.js` (knappene under «Kartdata» på gangtrafikksiden).
+
 ## Kilder og kreditering
 - Kartdata og bygninger © [OpenStreetMap](https://www.openstreetmap.org/copyright)-bidragsytere
 - Topografisk kart © Kartverket, satellittbilder © Esri

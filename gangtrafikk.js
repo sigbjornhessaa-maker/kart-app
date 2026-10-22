@@ -442,12 +442,16 @@ let malTraer = [];   // for hvert mål: { gange: tre, hjul: tre }
 let startInfo = [];  // for hvert startpunkt: { node, avstand, buss }
 let malInfo = [];    // for hvert mål: { node, avstand }
 
-// Regner ut det som trengs. hva = 'alt' (grafen er endret), 'mal' (et mål er
-// flyttet), 'start' (et startpunkt er flyttet) eller 'tall' (bare tall er endret).
+// Regner ut det som trengs. hva = 'alt' (grafen er endret), 'buss' (bussrutene
+// er lastet), 'mal' (et mål er flyttet), 'start' (et startpunkt er flyttet)
+// eller 'tall' (bare tall er endret).
 function oppdaterModell(hva) {
   if (hva === 'alt') {
     byggGraf(gangnettData, DATA.snarveier);
-    forberedBuss(typeof BUSSRUTER !== 'undefined' ? BUSSRUTER : bussData);
+  }
+  if (hva === 'alt' || hva === 'buss') {
+    // Nyhentede bussruter går foran fila, ellers fila hvis den finnes.
+    forberedBuss(bussData || (typeof BUSSRUTER !== 'undefined' ? BUSSRUTER : null));
   }
   if (hva === 'alt' || hva === 'mal') {
     malInfo = DATA.mal.map(function (m) { return narmesteNode(m.posisjon); });
@@ -455,7 +459,7 @@ function oppdaterModell(hva) {
       return { gange: korteste(m.node, false), hjul: korteste(m.node, true) };
     });
   }
-  if (hva === 'alt' || hva === 'mal' || hva === 'start') {
+  if (hva === 'alt' || hva === 'buss' || hva === 'mal' || hva === 'start') {
     startInfo = DATA.startpunkter.map(function (s) {
       const n = narmesteNode(s.posisjon);
       return { node: n.node, avstand: n.avstand, buss: bussValg(s.posisjon) };
@@ -1028,21 +1032,79 @@ function dagensDato() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function nettBeskrivelse() {
-  let tekst = gangnettData.features.length + ' stier og veier, ' + tall(noder.length) + ' kryss og knekkpunkter.';
+const provIgjenKnapp = document.getElementById('prov-igjen');
+
+function datoTekst(dato) {
+  return dato.toLocaleDateString('nb-NO');
+}
+
+// kilde: svaret fra hentMedLager, eller null hvis dataene kom fra fila.
+function nettBeskrivelse(kilde) {
+  let tekst = gangnettData.features.length + ' stier og veier, ' + tall(noder.length) + ' kryss og knekkpunkter';
+  tekst += kilde ? (kilde.fraLager ? ', lagret kopi fra ' + datoTekst(kilde.dato) + '.' : ', hentet nå.') : ', fra data/gangnett.js.';
   if (!gangnettData.bbox) {
     tekst += ' Fila dekker et mindre område enn analyseområdet: trykk «Hent gangnett på nytt» og last opp den nye fila.';
+  } else if (kilde) {
+    tekst += ' Last opp fila (knappen under) for at siden skal laste raskere for alle.';
   }
   return tekst;
+}
+
+function bussBeskrivelse(kilde) {
+  return bussLinjer.length + ' bussruter, ' + holdeplasser.length + ' holdeplasser på campus' +
+    (kilde ? (kilde.fraLager ? ', lagret kopi fra ' + datoTekst(kilde.dato) + '.' : ', hentet nå.') : ', fra data/bussruter.js.');
+}
+
+let lageneErLagtTil = false;
+
+// Gangnettet er klart: regn ut, og vis kartet.
+async function visGangnett(kilde) {
+  oppdaterModell('alt');
+  nettStatus.textContent = nettBeskrivelse(kilde);
+  await kartetErKlart;
+  if (!lageneErLagtTil) {
+    leggTilLag();
+    lageneErLagtTil = true;
+    // Si fra til redigeringen (gangtrafikk-rediger.js) at alt er klart.
+    document.dispatchEvent(new Event('gangtrafikk-klar'));
+  } else {
+    kart.getSource('nett').setData(gangnettData);
+  }
+  tegnPaNytt();
+}
+
+// Bussrutene lastes i bakgrunnen, så heatmapet vises uten å vente på dem.
+async function lastBussruter(tvingNy) {
+  if (typeof BUSSRUTER !== 'undefined' && !tvingNy) {
+    bussStatus.textContent = bussBeskrivelse(null);
+    return;
+  }
+  bussStatus.textContent = 'Henter bussruter fra OpenStreetMap … (kan ta et minutt). Heatmapet viser gående og syklende så lenge.';
+  try {
+    const kilde = await hentBussruterMedLager(function (t) { bussStatus.textContent = t; }, { tvingNy: tvingNy });
+    bussData = kilde.data;
+    if (gangnettData) {
+      oppdaterModell('buss');
+      tegnPaNytt();
+    }
+    bussStatus.textContent = bussBeskrivelse(kilde) + (kilde.gammel ? ' Klarte ikke hente nye, så den gamle kopien brukes.' : '');
+    return kilde;
+  } catch (feil) {
+    console.error(feil);
+    bussStatus.textContent = 'Klarte ikke hente bussrutene (' + feil.message + '). Bussreisende er ikke med. ' +
+      'Trykk «Hent bussruter på nytt» for å prøve igjen.';
+    return null;
+  }
 }
 
 document.getElementById('hent-nett-knapp').addEventListener('click', async function () {
   nettStatus.textContent = 'Henter gangnett fra OpenStreetMap … (kan ta et halvt minutt)';
   try {
-    const gangnett = await hentGangnett();
-    lastNed(lagGangnettFil(gangnett, dagensDato()), 'gangnett.js');
-    nettStatus.textContent = 'Hentet ' + gangnett.features.length + ' stier og veier. Fila gangnett.js er lastet ned: ' +
-      'last den opp til mappa data/ på GitHub for å erstatte den gamle.';
+    const kilde = await hentGangnettMedLager(function (t) { nettStatus.textContent = t; }, { tvingNy: true });
+    gangnettData = kilde.data;
+    await visGangnett(kilde);
+    lastNed(lagGangnettFil(gangnettData, dagensDato()), 'gangnett.js');
+    nettStatus.textContent = nettBeskrivelse(kilde) + ' Fila gangnett.js er lastet ned: last den opp til mappa data/ på GitHub.';
   } catch (feil) {
     console.error(feil);
     nettStatus.textContent = 'Klarte ikke hente gangnettet (' + feil.message + '). Prøv igjen om litt.';
@@ -1050,57 +1112,37 @@ document.getElementById('hent-nett-knapp').addEventListener('click', async funct
 });
 
 document.getElementById('hent-buss-knapp').addEventListener('click', async function () {
-  bussStatus.textContent = 'Henter bussruter fra OpenStreetMap … (kan ta et minutt)';
-  try {
-    const bussruter = await hentBussruter();
-    lastNed(lagBussruterFil(bussruter, dagensDato()), 'bussruter.js');
-    bussStatus.textContent = 'Hentet ' + bussruter.linjer.length + ' bussruter. Fila bussruter.js er lastet ned: ' +
-      'last den opp til mappa data/ på GitHub.';
-  } catch (feil) {
-    console.error(feil);
-    bussStatus.textContent = 'Klarte ikke hente bussrutene (' + feil.message + '). Prøv igjen om litt.';
+  const kilde = await lastBussruter(true);
+  if (kilde) {
+    lastNed(lagBussruterFil(kilde.data, dagensDato()), 'bussruter.js');
+    bussStatus.textContent += ' Fila bussruter.js er lastet ned: last den opp til mappa data/ på GitHub.';
   }
 });
 
+provIgjenKnapp.addEventListener('click', start);
+
 async function start() {
-  // Gangnettet
+  provIgjenKnapp.hidden = true;
+  let kilde = null;
   if (typeof GANGNETT !== 'undefined') {
     gangnettData = GANGNETT;
   } else {
-    nettStatus.textContent = 'Fant ikke data/gangnett.js. Henter gangnettet fra OpenStreetMap …';
+    nettStatus.textContent = 'Henter gangnettet fra OpenStreetMap … (første gang kan det ta et halvt minutt)';
     try {
-      gangnettData = await hentGangnett();
+      kilde = await hentGangnettMedLager(function (t) { nettStatus.textContent = t; });
+      gangnettData = kilde.data;
     } catch (feil) {
       console.error(feil);
-      nettStatus.textContent = 'Fant ikke data/gangnett.js, og klarte ikke hente gangnettet fra OpenStreetMap (' +
-        feil.message + '). Last siden på nytt for å prøve igjen.';
+      nettStatus.textContent = 'Klarte ikke hente gangnettet fra OpenStreetMap (' + feil.message + ').';
+      provIgjenKnapp.hidden = false;
       return;
     }
   }
-
-  // Bussrutene (siden virker uten, men da er bussreisende ikke med)
-  if (typeof BUSSRUTER === 'undefined') {
-    bussStatus.textContent = 'Fant ikke data/bussruter.js. Henter bussrutene fra OpenStreetMap …';
-    try {
-      bussData = await hentBussruter();
-    } catch (feil) {
-      console.error(feil);
-      bussStatus.textContent = 'Klarte ikke hente bussrutene (' + feil.message + '). Bussreisende er ikke med.';
-    }
+  await visGangnett(kilde);
+  if (kilde && kilde.gammel) {
+    nettStatus.textContent += ' (Klarte ikke hente nytt, så den gamle kopien brukes.)';
   }
-
-  oppdaterModell('alt');
-  nettStatus.textContent = nettBeskrivelse();
-  if (bussLinjer.length) {
-    bussStatus.textContent = bussLinjer.length + ' bussruter, ' + holdeplasser.length + ' holdeplasser på campus.' +
-      (typeof BUSSRUTER === 'undefined' ? ' Hentet direkte: trykk «Hent bussruter på nytt» og last opp fila for raskere lasting.' : '');
-  }
-
-  await kartetErKlart;
-  leggTilLag();
-  tegnPaNytt();
-  // Si fra til redigeringen (gangtrafikk-rediger.js) at alt er klart.
-  document.dispatchEvent(new Event('gangtrafikk-klar'));
+  lastBussruter(false); // venter ikke: bussene legges til når de er klare
 }
 
 // Start når hele siden er lastet, så redigeringen (gangtrafikk-rediger.js)
