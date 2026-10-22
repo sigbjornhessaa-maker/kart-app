@@ -18,7 +18,7 @@ Mitt første kart-app prosjekt: et kart over Trondheim laget med MapLibre GL.
 - `script.js` – kartet, kartlagene, punkter, avstandsmåling og reguleringsplaner.
 - `bygninger.js` – 3D-bygningene: henter fra OpenStreetMap og styrer tidslinjen.
 - `rediger.js` – redigeringsmodusen («Rediger bygg» i sidepanelet).
-- `campus-data.js` – **din datafil** med nye bygninger og rivinger. Se kommentarene i filen.
+- `campus-data.js` – **din datafil** med nye bygninger, rivinger og rettinger av feil i OpenStreetMap-byggene. Se kommentarene i filen.
 - `gangtrafikk.html` / `gangtrafikk.js` – siden for gangtrafikk: rutesøk, buss og heatmap.
 - `gangtrafikk-rediger.js` – redigeringsmodusen («Rediger scenario») på gangtrafikksiden.
 - `gangtrafikk-data.js` – **din datafil** med startpunkter, reisemåter, mål og snarveier.

@@ -215,6 +215,51 @@ function leggTilRivinger(bygninger) {
   });
 }
 
+// Bruker rettingene fra datafilen på OSM-bygningene: sletter bygg som er
+// feil, og retter navn, høyde og byggeår. Svarer med byggene som er slettet
+// (de vises bare i redigeringsmodus, så de kan tas tilbake).
+function brukRettinger(bygninger) {
+  const slettede = [];
+  (CAMPUS_DATA.rettinger || []).forEach(function (retting) {
+    const i = bygninger.findIndex(function (b) { return b.properties.osmId === retting.osmId; });
+    if (i < 0) {
+      if (bygninger.length > 0) {
+        console.warn('Fant ikke bygningen ' + retting.osmId + ' (rettinger i campus-data.js) på campus.');
+      }
+      return;
+    }
+    const p = bygninger[i].properties;
+    if (retting.slett) {
+      slettede.push(bygninger[i]);
+      bygninger.splice(i, 1);
+      return;
+    }
+    p.rettet = true;
+    if (retting.navn) {
+      p.navn = retting.navn;
+    }
+    if (retting.høyde) {
+      p.hoyde = retting.høyde;
+    }
+    if (retting.bunn !== undefined) {
+      p.bunn = retting.bunn;
+    }
+    if (retting.byggeår) {
+      p.byggeaar = retting.byggeår;
+      p.byggetid = manedsnummer(retting.byggeår, retting.byggemåned);
+      if (retting.byggemåned) {
+        p.byggemaned = retting.byggemåned;
+      } else {
+        delete p.byggemaned;
+      }
+    }
+    if (retting.merknad) {
+      p.merknad = retting.merknad;
+    }
+  });
+  return slettede;
+}
+
 // Setter sammen alle bygningene og gir dem til kartet.
 function oppdaterBygningsdata() {
   const kilde = kart.getSource('bygninger');
@@ -225,11 +270,17 @@ function oppdaterBygningsdata() {
   const alle = osmBygninger.map(function (b) {
     return { type: 'Feature', geometry: b.geometry, properties: Object.assign({}, b.properties) };
   });
+  const slettede = brukRettinger(alle);
   leggTilRivinger(alle);
   kilde.setData({
     type: 'FeatureCollection',
     features: alle.concat(nyeBygningerFraDatafil())
   });
+  // Slettede bygg vises som røde omriss i redigeringsmodus (se rediger.js).
+  const slettetKilde = kart.getSource('slettede-bygg');
+  if (slettetKilde) {
+    slettetKilde.setData({ type: 'FeatureCollection', features: slettede });
+  }
 }
 
 // ---------- Hente bygninger fra OpenStreetMap ----------
@@ -268,6 +319,9 @@ async function hentOsmBygninger(tvingNy) {
 }
 
 byggProvIgjen.addEventListener('click', function () {
+  hentOsmBygninger(true);
+});
+document.getElementById('hent-bygg-knapp').addEventListener('click', function () {
   hentOsmBygninger(true);
 });
 
@@ -369,6 +423,9 @@ function visBygningsinfo(hendelse) {
   }
   if (p.merknad) {
     html += '<tr><th>Merknad</th><td>' + trygg(p.merknad) + '</td></tr>';
+  }
+  if (p.rettet) {
+    html += '<tr><th>Rettet</th><td>Ja, i campus-data.js</td></tr>';
   }
   if (p.kilde === 'osm') {
     html += '<tr><th>OSM-ID</th><td><a href="https://www.openstreetmap.org/' + trygg(p.osmId) +

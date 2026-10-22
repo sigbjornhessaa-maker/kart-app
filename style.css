@@ -600,6 +600,18 @@ button {
   font-size: 1rem;
 }
 
+/* Feltene for bygg fra OpenStreetMap ligger i en kolonne, som de andre skjemaene */
+#osm-felter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Verdien fra OpenStreetMap vises som grå hjelpetekst i tomme felt */
+#osm-felter input::placeholder {
+  color: #8a8984;
+}
+
 /* Sørg for at elementer med hidden-attributtet alltid er skjult,
    også når de har display: flex fra reglene over. */
 [hidden] {

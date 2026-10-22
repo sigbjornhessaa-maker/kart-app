@@ -6,6 +6,7 @@
 // Her ligger:
 //   1. nyeBygninger – bygninger som ikke finnes i OpenStreetMap ennå
 //   2. rivinger     – eksisterende bygninger som skal rives
+//   3. rettinger    – feil i byggene fra OpenStreetMap som er rettet eller slettet
 //
 // Tidslinjen i kartet går måned for måned fra 2020: en ny bygning dukker
 // opp i byggemåneden, og en bygning som rives forsvinner i rivemåneden.
@@ -73,5 +74,16 @@ const CAMPUS_DATA = {
     { osmId: 'way/30285316', riveår: 2027 },
     { osmId: 'way/38138616', riveår: 2028 },
     { osmId: 'way/38314745', riveår: 2028 }
+  ],
+
+  // 3. RETTINGER
+  // Feil i byggene fra OpenStreetMap. Hver retting har osmId, og så det som skal endres:
+  //   slett      – true = bygget fjernes helt fra kartet
+  //   navn       – riktig navn
+  //   høyde      – riktig høyde i meter
+  //   byggeår    – riktig byggeår (og eventuelt byggemåned, 1–12)
+  //   merknad    – (valgfritt) en kort forklaring
+  // Er omrisset feil: bruk «Gjør om til eget bygg» i redigeringen.
+  rettinger: [
   ]
 };

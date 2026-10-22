@@ -13,7 +13,7 @@
   <!-- Vårt eget stilark -->
   <!-- ?v=dato bak filnavnene tvinger nettleseren til å hente nye versjoner
        i stedet for gamle kopier. Endre datoen når du endrer en fil. -->
-  <link rel="stylesheet" href="style.css?v=2026-10-23">
+  <link rel="stylesheet" href="style.css?v=2026-10-24">
 </head>
 <body>
   <header>
@@ -80,10 +80,12 @@
         <li><span class="farge ny"></span> Ny bygning (fra datafilen)</li>
         <li><span class="farge rives"></span> Skal rives</li>
       </ul>
+      <button id="hent-bygg-knapp">Hent bygninger på nytt</button>
+      <p class="hjelp">Henter byggene på nytt fra OpenStreetMap, f.eks. etter at noen har rettet dem der. Ellers brukes en lagret kopi i opptil 14 dager.</p>
 
       <!-- Redigeringsmodus (styres av rediger.js) -->
       <h2>Rediger bygg</h2>
-      <p class="hjelp">Tegn, flytt og endre nye bygg direkte i kartet, eller merk eksisterende bygg for riving.</p>
+      <p class="hjelp">Tegn, flytt og endre nye bygg direkte i kartet. Rett opp, slett eller riv bygg fra OpenStreetMap.</p>
       <p id="utkast-melding" class="utkast" hidden>Du har endringer som ikke er lagt inn i campus-data.js ennå.
         Bruk «Kopier kode» når du er fornøyd.</p>
       <button id="rediger-knapp">Rediger bygg</button>
@@ -93,7 +95,8 @@
           <li><strong>Velg:</strong> klikk på et oransje bygg.</li>
           <li><strong>Flytt:</strong> dra i det valgte (blå) bygget.</li>
           <li><strong>Endre form:</strong> dra i de hvite hjørnene. Dra i en liten blå prikk for å lage et nytt hjørne.</li>
-          <li><strong>Riving:</strong> klikk på et grått bygg og skriv inn riveår (og eventuelt måned).</li>
+          <li><strong>Rette, slette eller rive:</strong> klikk på et grått bygg fra OpenStreetMap.</li>
+          <li><strong>Slettede bygg</strong> vises med rød, stiplet kant. Klikk på dem for å ta dem tilbake.</li>
         </ul>
         <button id="tegn-knapp">Tegn nytt bygg</button>
 
@@ -115,14 +118,30 @@
           </div>
         </div>
 
-        <!-- Skjema for riving av eksisterende bygg -->
+        <!-- Skjema for eksisterende bygg fra OpenStreetMap: rette, slette eller rive -->
         <div id="rivings-skjema" class="skjema" hidden>
           <strong id="rivings-navn"></strong>
-          <div class="to-felt">
-            <label>Riveår (tomt = ikke rives) <input type="number" id="felt-riving-aar" min="1800" max="2200"></label>
-            <label>Måned <select id="felt-riving-maaned"><option value="">–</option><option value="1">januar</option><option value="2">februar</option><option value="3">mars</option><option value="4">april</option><option value="5">mai</option><option value="6">juni</option><option value="7">juli</option><option value="8">august</option><option value="9">september</option><option value="10">oktober</option><option value="11">november</option><option value="12">desember</option></select></label>
+          <p id="slettet-melding" class="utkast" hidden>Dette bygget er slettet fra kartet.</p>
+          <div id="osm-felter">
+            <p class="hjelp">Rett opp feil fra OpenStreetMap. Tomme felt bruker verdien fra OpenStreetMap (vist i grått).</p>
+            <label>Navn <input type="text" id="felt-osm-navn"></label>
+            <label>Høyde (meter) <input type="number" id="felt-osm-hoyde" min="1" max="300" step="0.5"></label>
+            <div class="to-felt">
+              <label>Byggeår <input type="number" id="felt-osm-byggeaar" min="1800" max="2200"></label>
+              <label>Måned <select id="felt-osm-byggemaaned"><option value="">–</option><option value="1">januar</option><option value="2">februar</option><option value="3">mars</option><option value="4">april</option><option value="5">mai</option><option value="6">juni</option><option value="7">juli</option><option value="8">august</option><option value="9">september</option><option value="10">oktober</option><option value="11">november</option><option value="12">desember</option></select></label>
+            </div>
+            <strong>Riving</strong>
+            <div class="to-felt">
+              <label>Riveår (tomt = ikke rives) <input type="number" id="felt-riving-aar" min="1800" max="2200"></label>
+              <label>Måned <select id="felt-riving-maaned"><option value="">–</option><option value="1">januar</option><option value="2">februar</option><option value="3">mars</option><option value="4">april</option><option value="5">mai</option><option value="6">juni</option><option value="7">juli</option><option value="8">august</option><option value="9">september</option><option value="10">oktober</option><option value="11">november</option><option value="12">desember</option></select></label>
+            </div>
+            <label>Merknad (valgfritt) <input type="text" id="felt-merknad"></label>
           </div>
-          <label>Merknad (valgfritt) <input type="text" id="felt-merknad"></label>
+          <div class="knapperad">
+            <button id="slett-osm">Slett fra kartet</button>
+            <button id="gjor-om-osm">Gjør om til eget bygg</button>
+          </div>
+          <p class="hjelp">«Gjør om til eget bygg» lager en kopi du kan dra i hjørnene på (for å rette omrisset), og sletter originalen.</p>
         </div>
 
         <p id="rediger-status" class="hjelp"></p>
@@ -153,14 +172,14 @@
     }
   </script>
   <!-- Oversettelse av arealformål-koder til tekst (brukes av script.js) -->
-  <script src="arealformal.js?v=2026-10-23"></script>
+  <script src="arealformal.js?v=2026-10-24"></script>
   <!-- Datafilen din med nye bygninger og rivinger (brukes av bygninger.js) -->
-  <script src="campus-data.js?v=2026-10-23"></script>
+  <script src="campus-data.js?v=2026-10-24"></script>
   <!-- Vår egen kode. Må komme ETTER MapLibre, fordi den bruker MapLibre -->
-  <script src="script.js?v=2026-10-23"></script>
+  <script src="script.js?v=2026-10-24"></script>
   <!-- Felles, robust henting fra OpenStreetMap (brukes av bygninger.js) -->
-  <script src="kartdata-henting.js?v=2026-10-23"></script>
-  <script src="bygninger.js?v=2026-10-23"></script>
-  <script src="rediger.js?v=2026-10-23"></script>
+  <script src="kartdata-henting.js?v=2026-10-24"></script>
+  <script src="bygninger.js?v=2026-10-24"></script>
+  <script src="rediger.js?v=2026-10-24"></script>
 </body>
 </html>

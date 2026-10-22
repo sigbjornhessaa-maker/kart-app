@@ -36,6 +36,14 @@ const feltRivingManed = document.getElementById('felt-riving-maaned');
 const slettHjorneKnapp = document.getElementById('slett-hjorne');
 const slettByggKnapp = document.getElementById('slett-bygg');
 const rivingsSkjema = document.getElementById('rivings-skjema');
+const osmFelter = document.getElementById('osm-felter');
+const slettetMelding = document.getElementById('slettet-melding');
+const feltOsmNavn = document.getElementById('felt-osm-navn');
+const feltOsmHoyde = document.getElementById('felt-osm-hoyde');
+const feltOsmByggeaar = document.getElementById('felt-osm-byggeaar');
+const feltOsmByggemaned = document.getElementById('felt-osm-byggemaaned');
+const slettOsmKnapp = document.getElementById('slett-osm');
+const gjorOmOsmKnapp = document.getElementById('gjor-om-osm');
 const rivingsNavn = document.getElementById('rivings-navn');
 const feltRivingAar = document.getElementById('felt-riving-aar');
 const feltMerknad = document.getElementById('felt-merknad');
@@ -57,6 +65,7 @@ const FIL_DATA = JSON.parse(JSON.stringify(CAMPUS_DATA));
 function ryddData(data) {
   data.nyeBygninger = data.nyeBygninger || [];
   data.rivinger = data.rivinger || [];
+  data.rettinger = data.rettinger || [];
   data.nyeBygninger.forEach(function (bygg) {
     const o = bygg.omriss;
     if (o.length > 1 && o[0][0] === o[o.length - 1][0] && o[0][1] === o[o.length - 1][1]) {
@@ -84,6 +93,12 @@ function standardform(data) {
     }),
     rivinger: data.rivinger.map(function (r) {
       return { osmId: r.osmId, riveår: r.riveår || null, rivemåned: r.rivemåned || null, merknad: r.merknad || null };
+    }),
+    rettinger: data.rettinger.map(function (r) {
+      return {
+        osmId: r.osmId, slett: !!r.slett, navn: r.navn || null, høyde: r.høyde || null,
+        byggeår: r.byggeår || null, byggemåned: r.byggemåned || null, merknad: r.merknad || null
+      };
     })
   });
 }
@@ -127,6 +142,7 @@ function hentUtkast() {
   }
   CAMPUS_DATA.nyeBygninger = utkast.nyeBygninger;
   CAMPUS_DATA.rivinger = utkast.rivinger;
+  CAMPUS_DATA.rettinger = utkast.rettinger;
   utkastMelding.hidden = false;
   oppdaterBygningsdata();
 }
@@ -143,6 +159,13 @@ function tegnRedigering() {
   if (!kart.getSource('rediger-bygg')) {
     return;
   }
+
+  // Markér det valgte bygget fra OpenStreetMap.
+  const osmGeometri = redigerer && valgtRivning ? originalOsmGeometri(valgtRivning) : null;
+  kart.getSource('valgt-osm').setData({
+    type: 'FeatureCollection',
+    features: osmGeometri ? [{ type: 'Feature', properties: {}, geometry: osmGeometri }] : []
+  });
 
   // Alle nye bygg som flate flater. Det valgte bygget får valgt: true.
   const bygg = CAMPUS_DATA.nyeBygninger.map(function (b, i) {
@@ -217,6 +240,21 @@ function oppdaterPanel() {
   const rivning = valgtRivning ? finnRivning(valgtRivning) : null;
   rivingsSkjema.hidden = !valgtRivning;
   if (valgtRivning) {
+    // Rettinger: feltene viser rettingen, og verdien fra OpenStreetMap står i grått.
+    const retting = finnRetting(valgtRivning) || {};
+    const original = originalOsm(valgtRivning) || {};
+    feltOsmNavn.value = retting.navn || '';
+    feltOsmNavn.placeholder = original.navn || 'Uten navn';
+    feltOsmHoyde.value = retting.høyde || '';
+    feltOsmHoyde.placeholder = original.hoyde ? Math.round(original.hoyde) + ' m' : '';
+    feltOsmByggeaar.value = retting.byggeår || '';
+    feltOsmByggeaar.placeholder = original.byggeaar || 'Ukjent';
+    feltOsmByggemaned.value = retting.byggemåned || '';
+    const slettet = !!retting.slett;
+    slettetMelding.hidden = !slettet;
+    osmFelter.hidden = slettet;
+    slettOsmKnapp.textContent = slettet ? 'Ta bygget tilbake' : 'Slett fra kartet';
+    gjorOmOsmKnapp.hidden = slettet;
     feltRivingAar.value = rivning ? rivning.riveår : '';
     feltRivingManed.value = rivning && rivning.rivemåned ? rivning.rivemåned : '';
     feltMerknad.value = rivning && rivning.merknad ? rivning.merknad : '';
@@ -237,6 +275,129 @@ function velgBygg(indeks) {
 function finnRivning(osmId) {
   return CAMPUS_DATA.rivinger.find(function (r) { return r.osmId === osmId; });
 }
+
+function finnRetting(osmId) {
+  return CAMPUS_DATA.rettinger.find(function (r) { return r.osmId === osmId; });
+}
+
+// Bygget slik det er i OpenStreetMap, før rettinger (osmBygninger ligger i bygninger.js).
+function originalOsm(osmId) {
+  const bygg = osmBygninger.find(function (b) { return b.properties.osmId === osmId; });
+  return bygg ? bygg.properties : null;
+}
+
+function originalOsmGeometri(osmId) {
+  const bygg = osmBygninger.find(function (b) { return b.properties.osmId === osmId; });
+  return bygg ? bygg.geometry : null;
+}
+
+// Henter rettingen for et bygg, eller lager en ny.
+function hentEllerLagRetting(osmId) {
+  let retting = finnRetting(osmId);
+  if (!retting) {
+    retting = { osmId: osmId };
+    CAMPUS_DATA.rettinger.push(retting);
+  }
+  return retting;
+}
+
+// Fjerner rettinger som ikke lenger endrer noe.
+function ryddRettinger() {
+  CAMPUS_DATA.rettinger = CAMPUS_DATA.rettinger.filter(function (r) {
+    return Object.keys(r).some(function (k) { return k !== 'osmId'; });
+  });
+}
+
+function settEllerFjern(objekt, navn, verdi) {
+  if (verdi) {
+    objekt[navn] = verdi;
+  } else {
+    delete objekt[navn];
+  }
+}
+
+// Når du skriver i feltene for et OSM-bygg.
+function rettingEndret() {
+  const retting = hentEllerLagRetting(valgtRivning);
+  settEllerFjern(retting, 'navn', feltOsmNavn.value.trim());
+  settEllerFjern(retting, 'høyde', parseFloat(feltOsmHoyde.value) || null);
+  settEllerFjern(retting, 'byggeår', lesTallfelt(feltOsmByggeaar));
+  settEllerFjern(retting, 'byggemåned', retting.byggeår ? lesTallfelt(feltOsmByggemaned) : null);
+  ryddRettinger();
+  lagreEndringer();
+}
+
+// Slett bygget fra kartet, eller ta det tilbake.
+function slettEllerTaTilbake() {
+  const retting = hentEllerLagRetting(valgtRivning);
+  if (retting.slett) {
+    delete retting.slett;
+    redigerStatus.textContent = 'Bygget er tatt tilbake.';
+  } else {
+    retting.slett = true;
+    redigerStatus.textContent = 'Bygget er slettet fra kartet. Det vises med rød, stiplet kant mens du redigerer, så du kan ta det tilbake.';
+  }
+  ryddRettinger();
+  oppdaterPanel();
+  lagreEndringer();
+}
+
+// Lager en kopi av et OSM-bygg som et eget bygg du kan endre omrisset på,
+// og sletter originalen. Har bygget et gårdsrom, blir det fylt igjen.
+function gjorOmTilEgetBygg() {
+  const geometri = originalOsmGeometri(valgtRivning);
+  if (!geometri) {
+    return;
+  }
+  // Ytterveggen: første ring (for bygg i flere deler: den største delen).
+  let ring;
+  if (geometri.type === 'Polygon') {
+    ring = geometri.coordinates[0];
+  } else {
+    ring = geometri.coordinates.map(function (polygon) { return polygon[0]; })
+      .sort(function (a, b) { return b.length - a.length; })[0];
+  }
+  const omriss = ring.slice(0, -1).map(function (p) { return [Number(p[0].toFixed(6)), Number(p[1].toFixed(6))]; });
+
+  const original = originalOsm(valgtRivning) || {};
+  const retting = finnRetting(valgtRivning) || {};
+  const rivning = finnRivning(valgtRivning);
+  const nytt = {
+    navn: retting.navn || original.navn || 'Bygg fra OpenStreetMap',
+    // Uten kjent byggeår: 2000, så det står hele tidslinjen (fra 2020).
+    byggeår: retting.byggeår || original.byggeaar || 2000,
+    høyde: retting.høyde || Math.round(original.hoyde || 10),
+    omriss: omriss
+  };
+  if (retting.byggemåned || original.byggemaned) {
+    nytt.byggemåned = retting.byggemåned || original.byggemaned;
+  }
+  // En planlagt riving følger med over til det nye bygget.
+  if (rivning) {
+    nytt.riveår = rivning.riveår;
+    if (rivning.rivemåned) {
+      nytt.rivemåned = rivning.rivemåned;
+    }
+    CAMPUS_DATA.rivinger = CAMPUS_DATA.rivinger.filter(function (r) { return r !== rivning; });
+  }
+  CAMPUS_DATA.nyeBygninger.push(nytt);
+
+  // Originalen slettes, med en merknad om hvorfor.
+  const osmId = valgtRivning;
+  CAMPUS_DATA.rettinger = CAMPUS_DATA.rettinger.filter(function (r) { return r.osmId !== osmId; });
+  CAMPUS_DATA.rettinger.push({ osmId: osmId, slett: true, merknad: 'Erstattet av eget bygg (' + nytt.navn + ')' });
+
+  velgBygg(CAMPUS_DATA.nyeBygninger.length - 1);
+  lagreEndringer();
+  redigerStatus.textContent = 'Bygget er gjort om til et eget bygg. Dra i hjørnene for å rette omrisset.';
+}
+
+[feltOsmNavn, feltOsmHoyde, feltOsmByggeaar].forEach(function (felt) {
+  felt.addEventListener('input', rettingEndret);
+});
+feltOsmByggemaned.addEventListener('change', rettingEndret);
+slettOsmKnapp.addEventListener('click', slettEllerTaTilbake);
+gjorOmOsmKnapp.addEventListener('click', gjorOmTilEgetBygg);
 
 // Når du skriver i skjemaet, oppdateres bygget med en gang.
 function lesTallfelt(felt) {
@@ -426,8 +587,8 @@ function redigeringsklikk(hendelse) {
     return true;
   }
 
-  // Klikk på et eksisterende bygg: vis skjema for riving.
-  const eksisterende = kart.queryRenderedFeatures(hendelse.point, { layers: ['bygninger-3d'] })
+  // Klikk på et eksisterende bygg (eller et slettet): vis skjema for å rette, slette eller rive.
+  const eksisterende = kart.queryRenderedFeatures(hendelse.point, { layers: ['bygninger-3d', 'slettede-bygg-fyll'] })
     .filter(function (b) { return b.properties.kilde === 'osm'; });
   if (eksisterende.length > 0) {
     const p = eksisterende[0].properties;
@@ -586,10 +747,35 @@ function lagDatafil() {
     return linje + ' }';
   });
 
+  const rettinger = CAMPUS_DATA.rettinger.map(function (r) {
+    const deler = ['osmId: ' + tekstverdi(r.osmId)];
+    if (r.slett) {
+      deler.push('slett: true');
+    }
+    if (r.navn) {
+      deler.push('navn: ' + tekstverdi(r.navn));
+    }
+    if (r.høyde) {
+      deler.push('høyde: ' + r.høyde);
+    }
+    if (r.byggeår) {
+      deler.push('byggeår: ' + r.byggeår);
+    }
+    if (r.byggemåned) {
+      deler.push('byggemåned: ' + r.byggemåned);
+    }
+    if (r.merknad) {
+      deler.push('merknad: ' + tekstverdi(r.merknad));
+    }
+    return '    { ' + deler.join(', ') + ' }';
+  });
+
   return DATAFIL_TOPP +
     '  nyeBygninger: [\n' + bygg.join(',\n') + (bygg.length ? '\n' : '') + '  ],\n\n' +
     DATAFIL_RIVINGER +
-    '  rivinger: [\n' + rivinger.join(',\n') + (rivinger.length ? '\n' : '') + '  ]\n};\n';
+    '  rivinger: [\n' + rivinger.join(',\n') + (rivinger.length ? '\n' : '') + '  ],\n\n' +
+    DATAFIL_RETTINGER +
+    '  rettinger: [\n' + rettinger.join(',\n') + (rettinger.length ? '\n' : '') + '  ]\n};\n';
 }
 
 // Forklaringen øverst i campus-data.js (kommer med når du kopierer koden).
@@ -601,6 +787,7 @@ const DATAFIL_TOPP = `// campus-data.js: DIN datafil for campus-kartet.
 // Her ligger:
 //   1. nyeBygninger – bygninger som ikke finnes i OpenStreetMap ennå
 //   2. rivinger     – eksisterende bygninger som skal rives
+//   3. rettinger    – feil i byggene fra OpenStreetMap som er rettet eller slettet
 //
 // Tidslinjen i kartet går måned for måned fra 2020: en ny bygning dukker
 // opp i byggemåneden, og en bygning som rives forsvinner i rivemåneden.
@@ -628,6 +815,16 @@ const CAMPUS_DATA = {
   //   riveår     – (valgfritt) året bygningen rives
   //   rivemåned  – (valgfritt) måneden den rives, 1–12 (uten: januar)
   //   omriss     – hjørnene i bygningens grunnflate, i rekkefølge rundt bygget
+`;
+
+const DATAFIL_RETTINGER = `  // 3. RETTINGER
+  // Feil i byggene fra OpenStreetMap. Hver retting har osmId, og så det som skal endres:
+  //   slett      – true = bygget fjernes helt fra kartet
+  //   navn       – riktig navn
+  //   høyde      – riktig høyde i meter
+  //   byggeår    – riktig byggeår (og eventuelt byggemåned, 1–12)
+  //   merknad    – (valgfritt) en kort forklaring
+  // Er omrisset feil: bruk «Gjør om til eget bygg» i redigeringen.
 `;
 
 const DATAFIL_RIVINGER = `  // 2. RIVINGER
@@ -672,6 +869,7 @@ forkastKnapp.addEventListener('click', function () {
   const kopi = JSON.parse(JSON.stringify(FIL_DATA));
   CAMPUS_DATA.nyeBygninger = kopi.nyeBygninger;
   CAMPUS_DATA.rivinger = kopi.rivinger;
+  CAMPUS_DATA.rettinger = kopi.rettinger;
   valgtRivning = null;
   velgBygg(null);
   kodeUt.hidden = true;
@@ -719,7 +917,7 @@ function slaRedigering(pa) {
 
   skjulNyeI3D = pa; // fra bygninger.js: tegn de nye byggene flatt mens vi redigerer
   visAar();
-  ['rediger-fyll', 'rediger-kant', 'rediger-handtak', 'rediger-tegning'].forEach(function (id) {
+  ['rediger-fyll', 'rediger-kant', 'rediger-handtak', 'rediger-tegning', 'slettede-bygg-fyll', 'slettede-bygg-kant', 'valgt-osm'].forEach(function (id) {
     kart.setLayoutProperty(id, 'visibility', pa ? 'visible' : 'none');
   });
   tegnRedigering();
@@ -786,6 +984,34 @@ narKartetErKlart(function () {
       'circle-stroke-width': 2
     }
   });
+
+  // Bygg fra OpenStreetMap som er slettet: røde, stiplede omriss (bare i
+  // redigeringsmodus), så du kan klikke på dem og ta dem tilbake.
+  kart.addSource('slettede-bygg', { type: 'geojson', data: tom });
+  kart.addLayer({
+    id: 'slettede-bygg-fyll',
+    type: 'fill',
+    source: 'slettede-bygg',
+    layout: skjult,
+    paint: { 'fill-color': '#c0392b', 'fill-opacity': 0.12 }
+  });
+  kart.addLayer({
+    id: 'slettede-bygg-kant',
+    type: 'line',
+    source: 'slettede-bygg',
+    layout: skjult,
+    paint: { 'line-color': '#c0392b', 'line-width': 2, 'line-dasharray': [2, 2] }
+  });
+  // Tykk svart kant rundt det valgte bygget fra OpenStreetMap.
+  kart.addSource('valgt-osm', { type: 'geojson', data: tom });
+  kart.addLayer({
+    id: 'valgt-osm',
+    type: 'line',
+    source: 'valgt-osm',
+    layout: skjult,
+    paint: { 'line-color': '#0b0b0b', 'line-width': 3 }
+  });
+  oppdaterBygningsdata(); // fyll inn de slettede byggene
 
   // Dra i håndtak og bygg, med mus og med finger.
   kart.on('mousedown', 'rediger-handtak', nedPaHandtak);
