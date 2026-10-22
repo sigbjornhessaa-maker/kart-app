@@ -1,0 +1,7 @@
+Kartdata hentet 2026-10-22 14:08 (UTC)
+
+OK      data/bygninger.js: 2649 bygninger
+OK      data/gangnett.js: 12294 stier og veier
+FEILET  data/bussruter.js: Overpass brukte for lang tid (den gamle fila er beholdt)
+
+Feilet noe? Prøv igjen senere ved å endre data/OPPDATER-KARTDATA.txt.
