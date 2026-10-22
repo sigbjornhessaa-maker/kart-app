@@ -4,8 +4,40 @@ const Sound = (() => {
   let ctx = null, master = null, noiseBuf = null;
   let enabled = true;
 
+  // På iPhone demper lydløs-bryteren Web Audio. Ved å si at dette er «avspilling»
+  // spilles lyden likevel (iOS 17+). Eldre iOS: et stille, løkkende lydspor gjør det samme.
+  let sessionSet = false;
+  function useMediaSession() {
+    if (sessionSet) return;
+    sessionSet = true;
+    if (navigator.audioSession) {
+      try { navigator.audioSession.type = 'playback'; } catch (e) { /* ignorer */ }
+      return;
+    }
+    if (!/iPhone|iPad|iPod/.test(navigator.userAgent)) return;
+    const audio = document.createElement('audio');
+    audio.src = silentWav();
+    audio.loop = true;
+    audio.setAttribute('playsinline', '');
+    audio.volume = 0.01;
+    audio.play().catch(() => { sessionSet = false; });
+  }
+
+  // Lager en kort, stille WAV-fil i minnet.
+  function silentWav() {
+    const samples = 800, buf = new ArrayBuffer(44 + samples), v = new DataView(buf);
+    const str = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+    str(0, 'RIFF'); v.setUint32(4, 36 + samples, true); str(8, 'WAVEfmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true);
+    v.setUint16(34, 8, true); str(36, 'data'); v.setUint32(40, samples, true);
+    for (let i = 0; i < samples; i++) v.setUint8(44 + i, 128);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+
   // Nettlesere (særlig iOS) krever at lyd startes etter et trykk fra brukeren.
   function unlock() {
+    if (enabled) useMediaSession();
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
@@ -17,7 +49,8 @@ const Sound = (() => {
       const data = noiseBuf.getChannelData(0);
       for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
     }
-    if (ctx.state === 'suspended') ctx.resume();
+    // iOS kan sette lyden i «interrupted» etter en telefonsamtale eller appbytte.
+    if (ctx.state !== 'running') ctx.resume();
   }
 
   function tone(freq, dur, o = {}) {

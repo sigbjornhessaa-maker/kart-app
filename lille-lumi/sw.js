@@ -1,6 +1,6 @@
 // Service worker: gjør at spillet fungerer offline.
 // Øk versjonsnummeret når du endrer filer, så får telefonen den nye versjonen.
-const CACHE = 'lille-lumi-v1';
+const CACHE = 'lille-lumi-v2';
 const ASSETS = [
   './',
   './index.html',
